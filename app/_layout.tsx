@@ -1,18 +1,36 @@
-import { Tabs } from "expo-router";
-import { LinkNav } from "./tabs";
+import { Session } from "@supabase/supabase-js";
+import { Slot, useRouter, useSegments } from "expo-router";
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
-export default function Layout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-      }}
-      initialRouteName="index"
-      tabBar={(props) => <LinkNav {...props} />}
-    >
-      <Tabs.Screen name="index" options={{ title: "Home" }} />
-      <Tabs.Screen name="About" options={{ title: "Learn" }} />
-      <Tabs.Screen name="Chat" options={{ title: "Chat" }} />
-    </Tabs>
-  );
+export default function RootLayout() {
+  const [session, setSession] = useState<Session | null>(null);
+  const router = useRouter();
+  const segments = useSegments();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => setSession(session),
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const inMain = segments[0] === "main";
+
+    if (!session && inMain) {
+      router.replace("/(auth)");
+    }
+
+    if (session && !inMain) {
+      router.replace("/main");
+    }
+  }, [session, segments]);
+
+  return <Slot />;
 }

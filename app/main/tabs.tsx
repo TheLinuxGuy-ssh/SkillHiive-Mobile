@@ -31,13 +31,13 @@ export const LinkNav = ({ state, navigation }: any) => {
     if (!layout) return;
 
     translateX.value = withSpring(layout.x, {
-      damping: 218,
+      damping: 220,
       stiffness: 4020,
     });
 
     width.value = withSpring(layout.width, {
-      damping: 20,
-      stiffness: 220,
+      damping: 220,
+      stiffness: 4020,
     });
   };
 
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     flex: 11,
   },
-  icon: { fontSize: 24 },
+  icon: { fontSize: 20 },
   text: { fontSize: 10, marginTop: 4, fontWeight: "500" },
   pill: {
     position: "absolute",
