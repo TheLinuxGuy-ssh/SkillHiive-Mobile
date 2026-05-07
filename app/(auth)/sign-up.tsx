@@ -21,7 +21,7 @@ import { supabase } from "@/lib/supabase";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { useRouter } from "expo-router";
 
-export default function SignInScreen() {
+export default function SignUpScreen() {
   const router = useRouter();
   const { colors, spacing, radii } = useTheme();
   const { handleSocialAuth, isLoading: socialLoading } = useSocialAuth();

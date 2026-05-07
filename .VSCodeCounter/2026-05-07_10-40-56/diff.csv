@@ -1,0 +1,21 @@
+"filename", "language", "TypeScript", "JSON", "TypeScript JSX", "XML", "comment", "blank", "total"
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/_layout.tsx", "TypeScript JSX", 0, 0, 13, 0, 0, 2, 15
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/index.tsx", "TypeScript JSX", 0, 0, 2, 0, 0, 0, 2
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/sign-in.tsx", "TypeScript JSX", 0, 0, -3, 0, 0, -1, -4
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/sign-up.tsx", "TypeScript JSX", 0, 0, 263, 0, 17, 22, 302
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/_layout.tsx", "TypeScript JSX", 0, 0, 4, 0, 2, 1, 7
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/course/_layout.tsx", "TypeScript JSX", 0, 0, 0, 0, 0, 1, 1
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/course/index.tsx", "TypeScript JSX", 0, 0, 26, 0, 0, 3, 29
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/_layout.tsx", "TypeScript JSX", 0, 0, 0, 0, -5, 0, -5
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/about.tsx", "TypeScript JSX", 0, 0, -20, 0, 0, -4, -24
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/chat.tsx", "TypeScript JSX", 0, 0, 7, 0, 0, 0, 7
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/index.tsx", "TypeScript JSX", 0, 0, 102, 0, 1, 15, 118
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/learn.tsx", "TypeScript JSX", 0, 0, 39, 0, 0, 4, 43
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/profile.tsx", "TypeScript JSX", 0, 0, 214, 0, 0, 10, 224
+"/home/anonymous/Documents/Projects/SkillHive-mobile/app/main/tabs.tsx", "TypeScript JSX", 0, 0, 5, 0, 4, 0, 9
+"/home/anonymous/Documents/Projects/SkillHive-mobile/assets/images/right-arrow.svg", "XML", 0, 0, 0, 8, 1, 0, 9
+"/home/anonymous/Documents/Projects/SkillHive-mobile/components/ui/CourseCard.tsx", "TypeScript JSX", 0, 0, 286, 0, 0, 10, 296
+"/home/anonymous/Documents/Projects/SkillHive-mobile/constants/tokens.ts", "TypeScript", 8, 0, 0, 0, 0, 0, 8
+"/home/anonymous/Documents/Projects/SkillHive-mobile/package-lock.json", "JSON", 0, 11, 0, 0, 0, 0, 11
+"/home/anonymous/Documents/Projects/SkillHive-mobile/package.json", "JSON", 0, 1, 0, 0, 0, 0, 1
+"Total", "-", 8, 12, 938, 8, 20, 63, 1049

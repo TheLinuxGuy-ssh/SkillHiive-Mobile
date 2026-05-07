@@ -1,0 +1,57 @@
+Date : 2026-05-07 10:40:56
+Directory : /home/anonymous/Documents/Projects/SkillHive-mobile
+Total : 19 files,  966 codes, 20 comments, 63 blanks, all 1049 lines
+
+Languages
++----------------+------------+------------+------------+------------+------------+
+| language       | files      | code       | comment    | blank      | total      |
++----------------+------------+------------+------------+------------+------------+
+| TypeScript JSX |         15 |        938 |         19 |         63 |      1,020 |
+| JSON           |          2 |         12 |          0 |          0 |         12 |
+| TypeScript     |          1 |          8 |          0 |          0 |          8 |
+| XML            |          1 |          8 |          1 |          0 |          9 |
++----------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                              | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                 |         19 |        966 |         20 |         63 |      1,049 |
+| . (Files)                                                                         |          2 |         12 |          0 |          0 |         12 |
+| app                                                                               |         14 |        652 |         19 |         53 |        724 |
+| app (Files)                                                                       |          1 |          4 |          2 |          1 |          7 |
+| app/(auth)                                                                        |          4 |        275 |         17 |         23 |        315 |
+| app/course                                                                        |          2 |         26 |          0 |          4 |         30 |
+| app/main                                                                          |          7 |        347 |          0 |         25 |        372 |
+| assets                                                                            |          1 |          8 |          1 |          0 |          9 |
+| assets/images                                                                     |          1 |          8 |          1 |          0 |          9 |
+| components                                                                        |          1 |        286 |          0 |         10 |        296 |
+| components/ui                                                                     |          1 |        286 |          0 |         10 |        296 |
+| constants                                                                         |          1 |          8 |          0 |          0 |          8 |
++-----------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| filename                                                                          | language       | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/_layout.tsx        | TypeScript JSX |         13 |          0 |          2 |         15 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/index.tsx          | TypeScript JSX |          2 |          0 |          0 |          2 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/sign-in.tsx        | TypeScript JSX |         -3 |          0 |         -1 |         -4 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/(auth)/sign-up.tsx        | TypeScript JSX |        263 |         17 |         22 |        302 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/_layout.tsx               | TypeScript JSX |          4 |          2 |          1 |          7 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/course/_layout.tsx        | TypeScript JSX |          0 |          0 |          1 |          1 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/course/index.tsx          | TypeScript JSX |         26 |          0 |          3 |         29 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/_layout.tsx          | TypeScript JSX |          0 |         -5 |          0 |         -5 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/about.tsx            | TypeScript JSX |        -20 |          0 |         -4 |        -24 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/chat.tsx             | TypeScript JSX |          7 |          0 |          0 |          7 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/index.tsx            | TypeScript JSX |        102 |          1 |         15 |        118 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/learn.tsx            | TypeScript JSX |         39 |          0 |          4 |         43 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/profile.tsx          | TypeScript JSX |        214 |          0 |         10 |        224 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/app/main/tabs.tsx             | TypeScript JSX |          5 |          4 |          0 |          9 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/assets/images/right-arrow.svg | XML            |          8 |          1 |          0 |          9 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/components/ui/CourseCard.tsx  | TypeScript JSX |        286 |          0 |         10 |        296 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/constants/tokens.ts           | TypeScript     |          8 |          0 |          0 |          8 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/package-lock.json             | JSON           |         11 |          0 |          0 |         11 |
+| /home/anonymous/Documents/Projects/SkillHive-mobile/package.json                  | JSON           |          1 |          0 |          0 |          1 |
+| Total                                                                             |                |        966 |         20 |         63 |      1,049 |
++-----------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+

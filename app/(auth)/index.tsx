@@ -89,13 +89,15 @@ export default function WelcomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(
       () => undefined,
     );
-    router.push("/(auth)/sign-in");
+    setTimeout(() => {
+      router.push("/(auth)/sign-in");
+    }, 50);
   }, [router]);
 
   return (
     <View
       className="flex-1 bg-canvas"
-      style={{ backgroundColor: "#000000", flex: 1 }}
+      style={{ backgroundColor: colors.bg.muted, flex: 1 }}
     >
       <SafeAreaView
         className="flex-1"
@@ -207,7 +209,12 @@ export default function WelcomeScreen() {
                   gap: spacing.sm,
                 }}
               >
-                <Text variant="subtitle" tone="inverse" weight="700">
+                <Text
+                  variant="subtitle"
+                  style={{ color: colors.text.black }}
+                  tone="inverse"
+                  weight="700"
+                >
                   Get started
                 </Text>
                 <Feather

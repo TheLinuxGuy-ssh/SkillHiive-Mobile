@@ -138,8 +138,10 @@ export const storyRingGradient = [
 // ─────────────────────────────────────────────────────────────────────────
 export interface ColorPalette {
   bg: { canvas: string; elevated: string; muted: string };
+  navbar: { text: string; activeText: string };
   surface: {
     primary: string;
+    skillhive: string;
     secondary: string;
     raised: string;
     sunken: string;
@@ -151,8 +153,10 @@ export interface ColorPalette {
     inverse: string;
     onTint: string;
     black: string;
+    white: string;
+    skillhive: string;
   };
-  border: { subtle: string; strong: string; focus: string };
+  border: { subtle: string; strong: string; focus: string; primary: string };
   tint: {
     primary: string;
     primaryStrong: string;
@@ -175,6 +179,10 @@ export interface ColorPalette {
 }
 
 export const lightPalette: ColorPalette = {
+  navbar: {
+    text: "#000000",
+    activeText: "#000000",
+  },
   bg: {
     canvas: "#FFFFFF",
     elevated: "#FFFFFF",
@@ -182,6 +190,7 @@ export const lightPalette: ColorPalette = {
   },
   surface: {
     primary: "#FFFFFF",
+    skillhive: "#FFFD01",
     secondary: "#F6F6F8",
     raised: "#FFFFFF",
     sunken: "#EFEFF3",
@@ -193,11 +202,14 @@ export const lightPalette: ColorPalette = {
     inverse: "#FFFFFF",
     onTint: "#FFFFFF",
     black: "#000000",
+    white: "#ffffff",
+    skillhive: "#fffd01",
   },
   border: {
     subtle: "rgba(15,15,18,0.07)",
     strong: "rgba(15,15,18,0.14)",
     focus: brand.coral,
+    primary: "#fffd01",
   },
   tint: {
     primary: brand.coral,
@@ -224,6 +236,10 @@ export const lightPalette: ColorPalette = {
 };
 
 export const darkPalette: ColorPalette = {
+  navbar: {
+    text: "#ffffff",
+    activeText: "#000000",
+  },
   bg: {
     canvas: "#1f1f1f",
     elevated: "#0E0E12",
@@ -231,6 +247,7 @@ export const darkPalette: ColorPalette = {
   },
   surface: {
     primary: "#0E0E12",
+    skillhive: "#FFFD01",
     secondary: "#15151B",
     raised: "#1B1B22",
     sunken: "#08080B",
@@ -242,11 +259,14 @@ export const darkPalette: ColorPalette = {
     inverse: "#0F0F12",
     onTint: "#FFFFFF",
     black: "#000000",
+    white: "#ffffff",
+    skillhive: "#fffd01",
   },
   border: {
     subtle: "rgba(255,255,255,0.08)",
     strong: "rgba(255,255,255,0.18)",
     focus: brand.coralSoft,
+    primary: "#fffd01",
   },
   tint: {
     primary: brand.coral,

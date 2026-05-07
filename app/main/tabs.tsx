@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from "react";
+import { useTheme } from "@/hooks/useTheme";
+import React, { useLayoutEffect, useRef } from "react";
 import {
   LayoutRectangle,
   Pressable,
@@ -10,63 +11,78 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import Icon from "react-native-vector-icons/FontAwesome6";
 
 const tabs = [
   { name: "index", label: "Home", icon: "house" },
-  { name: "about", label: "Learn", icon: "brain" },
+  { name: "learn", label: "Learn", icon: "brain" },
   { name: "chat", label: "Chat", icon: "comments" },
   { name: "profile", label: "Profile", icon: "user" },
 ];
 
-export const LinkNav = ({ state, navigation }: any) => {
+export const LinkNav = ({ state, navigation, onScrollRef }: any) => {
   const layouts = useRef<LayoutRectangle[]>([]);
+  const { colors } = useTheme();
 
   const translateX = useSharedValue(0);
   const width = useSharedValue(0);
+  const heights = tabs.map((_, i) => useSharedValue(i === 0 ? 0 : 20));
 
-  const movePill = (index: number) => {
-    const layout = layouts.current[index];
-    if (!layout) return;
+  // Register scroll handler — fires every frame during swipe, no state involved
+  useLayoutEffect(() => {
+    if (!onScrollRef) return;
+    onScrollRef.current = (position: number, offset: number) => {
+      const fromLayout = layouts.current[position];
+      const toLayout = layouts.current[position + 1] ?? fromLayout;
+      if (!fromLayout || !toLayout) return;
 
-    translateX.value = withSpring(layout.x, {
-      damping: 220,
-      stiffness: 4020,
-    });
+      // Interpolate x and width between the two tabs in real time
+      translateX.value = fromLayout.x + (toLayout.x - fromLayout.x) * offset;
+      width.value =
+        fromLayout.width + (toLayout.width - fromLayout.width) * offset;
+    };
+  }, [onScrollRef]);
 
-    width.value = withSpring(layout.width, {
-      damping: 220,
-      stiffness: 4020,
-    });
-  };
+  // Snap pill and animate labels when page settles
+  useLayoutEffect(() => {
+    const activeIndex = tabs.findIndex(
+      (t) => t.name === state.routes[state.index]?.name,
+    );
+    if (activeIndex === -1) return;
 
-  useEffect(() => {
-    const activeRoute = state.routes[state.index]?.name;
-
-    const activeIndex = tabs.findIndex((t) => t.name === activeRoute);
-
-    if (activeIndex !== -1) {
-      movePill(activeIndex);
+    const layout = layouts.current[activeIndex];
+    if (layout) {
+      translateX.value = withSpring(layout.x, {
+        damping: 220,
+        stiffness: 4020,
+      });
+      width.value = withSpring(layout.width, { damping: 220, stiffness: 4020 });
     }
+
+    heights.forEach((h, i) => {
+      h.value = withTiming(i === activeIndex ? 0 : 20, { duration: 180 });
+    });
   }, [state.index]);
 
-  useEffect(() => {
-    movePill(0);
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
+  const pillStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
     width: width.value,
   }));
 
   return (
     <View style={styles.nav}>
-      <View style={styles.container}>
-        <Animated.View style={[styles.pill, animatedStyle]} />
+      <View style={[styles.container, { backgroundColor: colors.bg.elevated }]}>
+        <Animated.View style={[styles.pill, pillStyle]} />
 
         {tabs.map((tab, i) => {
           const isFocused = state.routes[state.index]?.name === tab.name;
+
+          const textStyle = useAnimatedStyle(() => ({
+            height: heights[i].value,
+            overflow: "hidden",
+          }));
 
           return (
             <Pressable
@@ -74,6 +90,14 @@ export const LinkNav = ({ state, navigation }: any) => {
               onPress={() => navigation.navigate(tab.name)}
               onLayout={(e) => {
                 layouts.current[i] = e.nativeEvent.layout;
+                // Once all layouts measured, snap pill to initial tab
+                if (layouts.current.filter(Boolean).length === tabs.length) {
+                  const layout = layouts.current[state.index];
+                  if (layout) {
+                    translateX.value = layout.x;
+                    width.value = layout.width;
+                  }
+                }
               }}
               style={({ pressed }) => [styles.tab, pressed && styles.pressed]}
             >
@@ -82,17 +106,16 @@ export const LinkNav = ({ state, navigation }: any) => {
                   name={tab.icon}
                   size={18}
                   solid
-                  color={isFocused ? "#000" : "#fff"}
+                  color={
+                    isFocused ? colors.navbar.activeText : colors.navbar.text
+                  }
                   style={styles.icon}
                 />
-                <Animated.View style={[{ height: isFocused ? 0 : "auto" }]}>
+                <Animated.View style={textStyle}>
                   <Text
                     style={[
                       styles.text,
-                      { color: isFocused ? "#000" : "#fff" },
-                      {
-                        transform: [{ scale: isFocused ? 0 : 1 }],
-                      },
+                      { color: colors.navbar.text, height: 20 },
                     ]}
                   >
                     {tab.label}
@@ -108,12 +131,6 @@ export const LinkNav = ({ state, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: "absolute",
-    bottom: 10,
-    width: "100%",
-    alignItems: "center",
-  },
   nav: {
     flex: 1,
     flexDirection: "row",
@@ -127,12 +144,10 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    width: "auto",
     flexDirection: "row",
     borderRadius: 30,
     padding: 2,
     justifyContent: "space-evenly",
-    backgroundColor: "#000000",
     paddingHorizontal: 5,
   },
   tab: {
