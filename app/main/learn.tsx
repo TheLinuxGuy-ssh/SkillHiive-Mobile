@@ -46,7 +46,8 @@ const Learn = () => {
             <CourseCard
               key={course.id}
               title={course.title}
-              instructor={course.profiles.displayname}
+              instructor="someone"
+              // instructor={course.profiles.displayname}
               onPress={() => router.push("/course")}
               description={course.description}
               progress={23}
