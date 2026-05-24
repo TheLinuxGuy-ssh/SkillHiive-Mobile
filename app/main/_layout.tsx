@@ -13,12 +13,11 @@ const PagerView =
 
 import feedScreen from "./feedScreen";
 import HomeScreen from "./index";
-import LearnScreen from "./learn";
 import ProfileScreen from "./profile";
 
 const ROUTES = [
   { name: "index", title: "Home", component: HomeScreen },
-  { name: "learn", title: "Learn", component: LearnScreen },
+  // { name: "learn", title: "Learn", component: LearnScreen },
   { name: "feed", title: "Feed", component: feedScreen },
   { name: "profile", title: "Profile", component: ProfileScreen },
 ] as const;

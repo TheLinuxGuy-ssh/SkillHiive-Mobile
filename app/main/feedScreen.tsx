@@ -1,36 +1,65 @@
-import React, { useRef, useState } from "react";
-
-import { ScrollView, StatusBar, View } from "react-native";
-
-import { useTheme } from "@/hooks/useTheme";
-
 import FloatingSectionNav from "@/components/ui/FloatingSectionNav";
 import OfferCard from "@/components/ui/OfferCard";
 import ProjectCard from "@/components/ui/ProjectCard";
 import SectionHeader from "@/components/ui/SectionHeader";
 import ShareBar from "@/components/ui/ShareBar";
 import StreakCard from "@/components/ui/StreakCard";
+import { useTheme } from "@/hooks/useTheme";
+import React, { useRef, useState } from "react";
+import {
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StatusBar,
+  Text,
+  View,
+} from "react-native";
+
+// Hardcoded scroll break-points for the layout positions
+const POSITIONS: Record<string, number> = {
+  hive: 0,
+  cohort: 760,
+  global: 1450,
+};
 
 export default function FeedScreen() {
   const { colors, spacing, statusBarStyle } = useTheme();
-
   const scrollRef = useRef<ScrollView>(null);
-
   const [active, setActive] = useState("hive");
+
+  // A lock variable prevents scroll-listeners from fighting layout-jumps during manual selections
+  const isProgrammaticScroll = useRef(false);
 
   const jumpTo = (section: string) => {
     setActive(section);
-
-    const positions: Record<string, number> = {
-      hive: 0,
-      cohort: 760,
-      global: 1450,
-    };
+    isProgrammaticScroll.current = true;
 
     scrollRef.current?.scrollTo({
-      y: positions[section],
+      y: POSITIONS[section],
       animated: true,
     });
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (isProgrammaticScroll.current) return;
+
+    const offsetY = event.nativeEvent.contentOffset.y;
+
+    if (offsetY < (POSITIONS.cohort + POSITIONS.hive) / 2) {
+      if (active !== "hive") setActive("hive");
+    } else if (offsetY < (POSITIONS.global + POSITIONS.cohort) / 2) {
+      if (active !== "cohort") setActive("cohort");
+    } else {
+      if (active !== "global") setActive("global");
+    }
+  };
+
+  const handleMomentumScrollEnd = () => {
+    isProgrammaticScroll.current = false;
+  };
+
+  const handleScrollAnimationEnd = () => {
+    isProgrammaticScroll.current = false;
   };
 
   return (
@@ -45,6 +74,10 @@ export default function FeedScreen() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16} // Fires calculations at 60fps for smooth response
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        onScrollAnimationEnd={handleScrollAnimationEnd}
         contentContainerStyle={{
           paddingBottom: 140,
         }}
@@ -57,9 +90,7 @@ export default function FeedScreen() {
           }}
         >
           <ShareBar />
-
           <OfferCard />
-
           <ProjectCard />
         </View>
 
@@ -71,7 +102,6 @@ export default function FeedScreen() {
           }}
         >
           <ProjectCard />
-
           <StreakCard />
         </View>
 
@@ -79,9 +109,11 @@ export default function FeedScreen() {
 
         <View
           style={{
-            height: 120,
+            height: "100%",
           }}
-        />
+        >
+          <Text></Text>
+        </View>
       </ScrollView>
 
       <FloatingSectionNav active={active} onPress={jumpTo} />

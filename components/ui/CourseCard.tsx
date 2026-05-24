@@ -66,7 +66,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
           style={{
             borderRadius: 22,
             shadowColor: "#fffd01",
-            borderWidth: 1,
+            borderWidth: 0,
             borderColor: "rgba(255, 253, 1, 0.2)",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.15,

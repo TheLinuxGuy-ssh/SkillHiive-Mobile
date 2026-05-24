@@ -60,6 +60,7 @@ export default function RootLayout() {
           <Stack.Screen name="main" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="course/[id]" />
+          <Stack.Screen name="web" />
           <Stack.Screen name="profile/[id]" />
           <Stack.Screen
             name="rooms/[roomName]"

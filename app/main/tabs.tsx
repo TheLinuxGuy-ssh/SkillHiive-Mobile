@@ -17,7 +17,7 @@ import Icon from "react-native-vector-icons/FontAwesome6";
 
 const tabs = [
   { name: "index", label: "Home", icon: "house" },
-  { name: "learn", label: "Learn", icon: "brain" },
+  // { name: "learn", label: "Learn", icon: "brain" },
   { name: "feed", label: "Feed", icon: "comments" },
   { name: "profile", label: "Profile", icon: "user" },
 ];

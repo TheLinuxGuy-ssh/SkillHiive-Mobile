@@ -46,13 +46,13 @@ const Learn = () => {
             title={course.title}
             instructor="someone"
             // instructor={course.profiles.displayname}
-            onPress={() => router.push("/course")}
+            onPress={() => router.push(`/course/${course.id}`)}
             description={course.description}
             progress={23}
             enrolledCount={312}
             lessonCount={10}
             isNew={true}
-            thumbnail={require("@/assets/images/course.jpg")}
+            thumbnail={require("@/assets/images/legendcourse.png")}
           />
         ))}
       </Animated.ScrollView>

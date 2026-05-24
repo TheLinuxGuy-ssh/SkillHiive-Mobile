@@ -1,28 +1,3 @@
-/**
- * xMind 2026 — TOTAL visual rebuild.
- *
- * Visual identity rationale (FB + IG + Twitter hybrid):
- *  - The signature accent is a warm Instagram-style sunset: a coral
- *    primary (#F0466A) flanked by a softer peach and a deep magenta —
- *    the same hot-orange-to-pink axis that signals "post energy" on IG
- *    Stories rings, but tuned warmer than IG's literal gradient so it
- *    reads as its own brand rather than a clone.
- *  - The neutrals lean Twitter/X: tight ink-blacks on dark, near-white
- *    canvas on light, hairline borders. Density matters.
- *  - The communications blue (#1B7CE8) is a pragmatic Facebook nod —
- *    used for hyperlinks, mentions, and message-thread accents.
- *  - Old indigo (#5B3DF5) is gone entirely. This is a different app now.
- *
- * Token layers:
- *  1. Primitive scale  (raw values: spacing, radii, durations, type sizes)
- *  2. Semantic palette (light & dark — consumed via `useTheme`)
- *  3. Motion + elevation curves
- */
-
-// ─────────────────────────────────────────────────────────────────────────
-// Spacing — 4px baseline grid, slightly tighter mid-scale than before so
-// dense feed rows breathe without becoming Twitter-cramped.
-// ─────────────────────────────────────────────────────────────────────────
 export const spacing = {
   none: 0,
   xxs: 2,
