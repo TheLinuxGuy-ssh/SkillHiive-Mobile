@@ -1,140 +1,203 @@
-import React, { useState } from "react";
-
-import { Text, TouchableOpacity, View } from "react-native";
-
-import Svg, { Path } from "react-native-svg";
+import React, { useCallback, useEffect, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
+import { supabase } from "@/lib/supabase";
 
-interface ActionRowProps {
+// ─────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────
+
+type Props = {
+  postId: string;
   likes: number;
   comments: number;
+  /** Optional: called when the user taps the comment button */
+  onCommentPress?: (postId: string) => void;
+};
 
-  initiallyLiked?: boolean;
-
-  onLikePress?: () => void;
-  onCommentPress?: () => void;
-}
-
-function HeartIcon({ color, filled }: { color: string; filled?: boolean }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12 21s-6.716-4.35-9.428-8.078C.86 10.57 2.1 6.75 5.686 5.6c2.154-.69 4.232.08 5.314 1.61 1.082-1.53 3.16-2.3 5.314-1.61 3.586 1.15 4.826 4.97 3.114 7.322C18.716 16.65 12 21 12 21z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill={filled ? color : "transparent"}
-      />
-    </Svg>
-  );
-}
-
-function MessageIcon({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M21 11.5a8.5 8.5 0 01-8.5 8.5c-1.27 0-2.47-.28-3.55-.78L3 21l1.78-5.95A8.46 8.46 0 013 11.5 8.5 8.5 0 0111.5 3 8.5 8.5 0 0120 11.5z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
+// ─────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────
 
 export default function ActionRow({
+  postId,
   likes,
   comments,
-
-  initiallyLiked = false,
-
-  onLikePress,
   onCommentPress,
-}: ActionRowProps) {
+}: Props) {
   const { colors, spacing, typography } = useTheme();
 
-  const [liked, setLiked] = useState(initiallyLiked);
+  const [liked, setLiked]       = useState(false);
+  const [likeCount, setLikeCount] = useState(likes);
+  const [loading, setLoading]   = useState(false);
 
-  const handleLike = () => {
-    setLiked((prev) => !prev);
+  // ── Check if the current user already liked this post ──
 
-    onLikePress?.();
-  };
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkLiked() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user || cancelled) return;
+
+      const { data } = await supabase
+        .from("likes")
+        .select("id")
+        .eq("post_id", postId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!cancelled) setLiked(!!data);
+    }
+
+    checkLiked();
+    return () => { cancelled = true; };
+  }, [postId]);
+
+  // ── Toggle like ──
+
+  const handleLike = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    if (liked) {
+      // Optimistic update
+      setLiked(false);
+      setLikeCount((c) => Math.max(c - 1, 0));
+
+      const { error } = await supabase
+        .from("likes")
+        .delete()
+        .eq("post_id", postId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        // Rollback
+        setLiked(true);
+        setLikeCount((c) => c + 1);
+      }
+    } else {
+      // Optimistic update
+      setLiked(true);
+      setLikeCount((c) => c + 1);
+
+      const { error } = await supabase
+        .from("likes")
+        .insert({ post_id: postId, user_id: user.id });
+
+      if (error) {
+        // Rollback (handles race / duplicate gracefully)
+        setLiked(false);
+        setLikeCount((c) => Math.max(c - 1, 0));
+      }
+    }
+
+    setLoading(false);
+  }, [liked, loading, postId]);
+
+  // ─────────────────────────────────────────
+  // UI
+  // ─────────────────────────────────────────
 
   return (
     <View
       style={{
         flexDirection: "row",
         alignItems: "center",
-
         paddingHorizontal: spacing.base,
-        paddingVertical: spacing.md,
-
+        paddingVertical: spacing.sm,
         borderTopWidth: 1,
         borderTopColor: colors.border.subtle,
+        gap: 4,
       }}
     >
-      {/* Like */}
-      <TouchableOpacity
-        activeOpacity={0.7}
+      {/* Like button */}
+      <Pressable
         onPress={handleLike}
-        style={{
+        disabled={loading}
+        hitSlop={8}
+        style={({ pressed }) => ({
           flexDirection: "row",
           alignItems: "center",
-
-          marginRight: spacing.lg,
-        }}
+          gap: 6,
+          paddingVertical: 6,
+          paddingHorizontal: 10,
+          borderRadius: 999,
+          backgroundColor: pressed
+            ? liked
+              ? "rgba(239,68,68,0.15)"
+              : colors.surface.secondary
+            : liked
+            ? "rgba(239,68,68,0.10)"
+            : "transparent",
+        })}
       >
-        <HeartIcon
-          color={liked ? colors.tint.primary : colors.text.tertiary}
-          filled={liked}
-        />
-
         <Text
           style={{
-            marginLeft: spacing.xs,
-
-            color: liked ? colors.tint.primary : colors.text.tertiary,
-
-            fontSize: typography.bodySm.size,
-            lineHeight: typography.bodySm.lineHeight,
-
-            fontWeight: "600",
+            fontSize: 16,
+            // filled heart when liked, outline when not
+            color: liked ? "#ef4444" : colors.text.tertiary,
+            opacity: loading ? 0.5 : 1,
           }}
         >
-          {liked ? likes + 1 : likes}
+          {liked ? "♥" : "♡"}
         </Text>
-      </TouchableOpacity>
-
-      {/* Comment */}
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={onCommentPress}
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-        }}
-      >
-        <MessageIcon color={colors.text.tertiary} />
-
         <Text
           style={{
-            marginLeft: spacing.xs,
+            color: liked ? "#ef4444" : colors.text.tertiary,
+            fontSize: typography.bodySm.size,
+            fontWeight: liked ? "600" : "400",
+            opacity: loading ? 0.5 : 1,
+          }}
+        >
+          {likeCount > 0 ? likeCount : "Like"}
+        </Text>
+      </Pressable>
 
+      {/* Comment button */}
+      <Pressable
+        onPress={() => onCommentPress?.(postId)}
+        hitSlop={8}
+        style={({ pressed }) => ({
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          paddingVertical: 6,
+          paddingHorizontal: 10,
+          borderRadius: 999,
+          backgroundColor: pressed ? colors.surface.secondary : "transparent",
+        })}
+      >
+        <Text
+          style={{
+            fontSize: 15,
             color: colors.text.tertiary,
-
-            fontSize: typography.bodySm.size,
-            lineHeight: typography.bodySm.lineHeight,
-
-            fontWeight: "500",
           }}
         >
-          {comments}
+          💬
         </Text>
-      </TouchableOpacity>
+        <Text
+          style={{
+            color: colors.text.tertiary,
+            fontSize: typography.bodySm.size,
+          }}
+        >
+          {comments > 0 ? comments : "Comment"}
+        </Text>
+      </Pressable>
     </View>
   );
 }

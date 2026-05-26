@@ -1,33 +1,41 @@
 import React from "react";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
 
 interface Props {
   children: React.ReactNode;
+  onPress?: () => void;
+  style?: object;
 }
 
-export default function FeedCard({ children }: Props) {
+export default function FeedCard({ children, onPress, style }: Props) {
   const { colors, radii, spacing, elevation } = useTheme();
 
-  return (
-    <View
-      style={{
-        backgroundColor: colors.surface.primary,
+  const cardStyle = {
+    backgroundColor: colors.surface.primary,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    overflow: "hidden" as const,
+    marginBottom: spacing.md,
+    ...elevation.sm,
+    ...style,
+  };
 
-        borderRadius: radii.xl,
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => ({
+          ...cardStyle,
+          opacity: pressed ? 0.92 : 1,
+        })}
+      >
+        {children}
+      </Pressable>
+    );
+  }
 
-        borderWidth: 1,
-        borderColor: colors.border.subtle,
-
-        overflow: "hidden",
-
-        marginBottom: spacing.md,
-
-        ...elevation.sm,
-      }}
-    >
-      {children}
-    </View>
-  );
+  return <View style={cardStyle}>{children}</View>;
 }

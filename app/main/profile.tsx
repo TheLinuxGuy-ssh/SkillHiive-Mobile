@@ -3,7 +3,6 @@ import MenuItem from "@/components/ui/MenuItem";
 import ProfileImageEditButton from "@/components/ui/ProfileImageEditButton";
 import ProfileProjects from "@/components/ui/ProfileProjects";
 import ProfileStatItem from "@/components/ui/ProfileStatItem";
-import StatCard from "@/components/ui/StatCard";
 import { useProfile } from "@/hooks/profileContext";
 import { useSignOut } from "@/hooks/useSignOut";
 import { useTheme } from "@/hooks/useTheme";
@@ -13,7 +12,7 @@ import { ImageBackground } from "expo-image";
 import { useRouter } from "expo-router";
 
 import { useEffect, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
 const Profile = () => {
@@ -51,6 +50,7 @@ const Profile = () => {
       }}
     >
       <View style={{ flex: 1, zIndex: 10, backgroundColor: colors.bg.muted }}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
@@ -148,7 +148,7 @@ const Profile = () => {
             </View>
 
             {/* GRID */}
-            <View style={styles.grid}>
+            {/* <View style={styles.grid}>
               <StatCard icon="star" value="51" label="Balance" />
 
               <StatCard icon="trophy" value="1" label="Level" />
@@ -156,9 +156,10 @@ const Profile = () => {
               <StatCard icon="shield" value="Barefoot" label="Current League" />
 
               <StatCard icon="bolt" value="30" label="Total XP" />
-            </View>
+              </View> */}
 
             {/* ACTIONS */}
+              {profile?.id && <ProfileProjects userId={profile.id} />}
             <View
               style={[
                 styles.menuContainer,
@@ -168,7 +169,6 @@ const Profile = () => {
                 },
               ]}
             >
-              {profile?.id && <ProfileProjects userId={profile.id} />}
               <Text
                 style={[
                   styles.menuTitle,
@@ -221,6 +221,7 @@ const Profile = () => {
             onDismiss={hideAlert}
           />
         ) : null}
+      </KeyboardAvoidingView>
       </View>
     </View>
   );

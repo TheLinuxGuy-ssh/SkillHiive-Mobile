@@ -1,88 +1,259 @@
 import React from "react";
-
-import { Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
-
 import ActionRow from "./ActionRow";
 import FeedCard from "./FeedCard";
 
-export default function ProjectCard() {
+// ─────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────
+
+export type ProjectStatus = "active" | "completed" | "paused";
+
+export type ProjectCardData = {
+  post_id: string;
+  caption: string | null;
+  likes_count: number;
+  comments_count: number;
+  // project_posts fields
+  title: string;
+  description: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  status: ProjectStatus;
+  // first post_image (optional)
+  cover_url: string | null;
+  // author
+  author_name: string;
+  author_avatar: string | null;
+};
+
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+
+const STATUS_CONFIG: Record<
+  ProjectStatus,
+  { label: string; color: string; bg: string }
+> = {
+  active:    { label: "Active",    color: "#22c55e", bg: "rgba(34,197,94,0.12)"  },
+  completed: { label: "Completed", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  paused:    { label: "Paused",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+};
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function deriveDuration(
+  started_at: string | null,
+  ended_at: string | null
+): string | null {
+  if (!started_at) return null;
+  const start = new Date(started_at);
+  const end   = ended_at ? new Date(ended_at) : new Date();
+  const months = Math.round(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30)
+  );
+  if (months < 1)  return "< 1 mo";
+  if (months < 12) return `${months} mo`;
+  const yr  = Math.floor(months / 12);
+  const rem = months % 12;
+  return rem > 0 ? `${yr} yr ${rem} mo` : `${yr} yr`;
+}
+
+// ─────────────────────────────────────────
+// COMPONENT
+// ─────────────────────────────────────────
+
+type Props = {
+  data: ProjectCardData;
+  /** Called when the user taps the card body to view the full project */
+  onPress?: (postId: string) => void;
+};
+
+export default function ProjectCard({ data, onPress }: Props) {
   const { colors, spacing, radii, typography } = useTheme();
 
+  const statusCfg = STATUS_CONFIG[data.status];
+  const duration  = deriveDuration(data.started_at, data.ended_at);
+
+  const hasDateRange = data.started_at || data.ended_at;
+
   return (
-    <FeedCard>
-      <View
-        style={{
-          padding: spacing.base,
-        }}
-      >
-        <Text
-          style={{
-            color: colors.text.primary,
+    <FeedCard onPress={onPress ? () => onPress(data.post_id) : undefined}>
 
-            fontSize: typography.subtitle.size,
+      <View style={{ padding: spacing.base }}>
 
-            fontWeight: "700",
-          }}
-        >
-          Expense Tracker
-        </Text>
-
-        <Text
-          style={{
-            color: colors.text.tertiary,
-
-            marginTop: spacing.xs,
-
-            fontSize: typography.bodySm.size,
-          }}
-        >
-          Next.js · Supabase · Tailwind
-        </Text>
-
-        {/* Preview */}
+        {/* ── Author row ── */}
         <View
           style={{
-            height: 120,
-
-            marginTop: spacing.md,
-
-            backgroundColor: colors.surface.secondary,
-
-            borderRadius: radii.lg,
-
-            justifyContent: "center",
+            flexDirection: "row",
             alignItems: "center",
+            marginBottom: spacing.sm,
+          }}
+        >
+          {data.author_avatar ? (
+            <Image
+              source={{ uri: data.author_avatar }}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                marginRight: spacing.sm,
+                backgroundColor: colors.surface.secondary,
+              }}
+            />
+          ) : (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                marginRight: spacing.sm,
+                backgroundColor: colors.surface.secondary,
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.text.tertiary,
+                  fontSize: 13,
+                  fontWeight: "600",
+                }}
+              >
+                {data.author_name?.[0]?.toUpperCase() ?? "?"}
+              </Text>
+            </View>
+          )}
+
+          <Text
+            style={{
+              color: colors.text.secondary,
+              fontSize: typography.bodySm.size,
+              fontWeight: "600",
+            }}
+          >
+            {data.author_name}
+          </Text>
+        </View>
+
+        {/* ── Title + status ── */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
           }}
         >
           <Text
             style={{
-              color: colors.tint.primary,
-
+              flex: 1,
+              color: colors.text.primary,
+              fontSize: typography.subtitle.size,
               fontWeight: "700",
+              paddingRight: spacing.sm,
+            }}
+            numberOfLines={2}
+          >
+            {data.title}
+          </Text>
+
+          <View
+            style={{
+              backgroundColor: statusCfg.bg,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 5,
+              borderRadius: 999,
+              flexShrink: 0,
             }}
           >
-            Live Preview
-          </Text>
+            <Text
+              style={{
+                color: statusCfg.color,
+                fontSize: typography.caption?.size ?? 11,
+                fontWeight: "700",
+              }}
+            >
+              {statusCfg.label}
+            </Text>
+          </View>
         </View>
 
-        <Text
-          style={{
-            color: colors.text.secondary,
+        {/* ── Date range + duration ── */}
+        {hasDateRange && (
+          <Text
+            style={{
+              color: colors.text.tertiary,
+              marginTop: spacing.xs,
+              fontSize: typography.bodySm.size,
+            }}
+          >
+            {data.started_at ? formatDate(data.started_at) : "?"}
+            {" → "}
+            {data.ended_at ? formatDate(data.ended_at) : "Present"}
+            {duration ? `  ·  ${duration}` : ""}
+          </Text>
+        )}
 
-            marginTop: spacing.md,
+        {/* ── Cover image ── */}
+        {!!data.cover_url && (
+          <Image
+            source={{ uri: data.cover_url }}
+            style={{
+              height: 160,
+              marginTop: spacing.md,
+              borderRadius: radii.lg,
+              backgroundColor: colors.surface.secondary,
+            }}
+            resizeMode="cover"
+          />
+        )}
 
-            fontSize: typography.body.size,
+        {/* ── Description ── */}
+        {!!data.description && (
+          <Text
+            style={{
+              color: colors.text.secondary,
+              marginTop: spacing.md,
+              fontSize: typography.body.size,
+              lineHeight: typography.body.lineHeight,
+            }}
+            numberOfLines={3}
+          >
+            {data.description}
+          </Text>
+        )}
 
-            lineHeight: typography.body.lineHeight,
-          }}
-        >
-          Week 8 done. Feedback welcome on mobile layout.
-        </Text>
+        {/* ── Caption / social blurb ── */}
+        {!!data.caption && (
+          <Text
+            style={{
+              color: colors.text.tertiary,
+              marginTop: spacing.xs,
+              fontSize: typography.bodySm.size,
+              fontStyle: "italic",
+            }}
+            numberOfLines={2}
+          >
+            {data.caption}
+          </Text>
+        )}
+
       </View>
 
-      <ActionRow likes={27} comments={8} />
+      {/* ── Action row (likes + comments) ── */}
+      <ActionRow
+        postId={data.post_id}
+        likes={data.likes_count}
+        comments={data.comments_count}
+      />
+
     </FeedCard>
   );
 }

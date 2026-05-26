@@ -27,6 +27,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import FeedCard from "./FeedCard";
 
 type Project = {
   id: string;
@@ -39,7 +40,7 @@ const DISMISS_THRESHOLD = 100;
 const DISMISS_VELOCITY = 700;
 
 export default function ProfileProjects({ userId }: { userId: string }) {
-  const { colors } = useTheme();
+  const { colors, spacing, typography, radii } = useTheme();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,11 +124,12 @@ export default function ProfileProjects({ userId }: { userId: string }) {
   async function fetchProjects() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+  const { data, error } = await supabase
+  .from("projects")
+  .select("*")
+  .eq("user_id", userId)
+  .order("created_at", { ascending: false })
+  .limit(3);
 
     if (!error && data) {
       setProjects(data);
@@ -232,49 +234,144 @@ export default function ProfileProjects({ userId }: { userId: string }) {
             <Text style={{ opacity: 0.5 }}>No projects yet</Text>
           ) : (
             projects.map((p) => (
-              <View
-                key={p.id}
-                style={{
-                  borderWidth: 1,
-                  borderColor: "#e5e5e5",
-                  borderRadius: 16,
-                  backgroundColor: colors.text.white,
-                  padding: 14,
-                  marginBottom: 12,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                  }}
-                >
-                  {p.title}
-                </Text>
+              <FeedCard
+  key={p.id}
+  style={{
+    marginBottom: spacing.md,
+  }}
+>
+  <View
+    style={{
+      padding: spacing.base,
+    }}
+  >
+    {/* Header */}
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+      }}
+    >
+      <View
+        style={{
+          flex: 1,
+          paddingRight: spacing.sm,
+        }}
+      >
+        <Text
+          style={{
+            color: colors.text.primary,
+            fontSize: typography.subtitle.size,
+            fontWeight: "700",
+          }}
+        >
+          {p.title}
+        </Text>
 
-                {p.created_at && (
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      opacity: 0.5,
-                      marginTop: 2,
-                    }}
-                  >
-                    Started: {new Date(p.created_at).toDateString()}
-                  </Text>
-                )}
+        {p.created_at && (
+          <Text
+            style={{
+              color: colors.text.tertiary,
+              marginTop: spacing.xs,
+              fontSize: typography.bodySm.size,
+            }}
+          >
+            Started {new Date(p.created_at).toLocaleDateString()}
+          </Text>
+        )}
+      </View>
 
-                {!!p.description && (
-                  <Text
-                    style={{
-                      marginTop: 8,
-                      opacity: 0.8,
-                    }}
-                  >
-                    {p.description}
-                  </Text>
-                )}
-              </View>
+      {/* Status Pill */}
+      <View
+        style={{
+          backgroundColor: colors.surface.secondary,
+          paddingHorizontal: spacing.sm,
+          paddingVertical: 6,
+          borderRadius: "50%",
+        }}
+      >
+        <Text
+          style={{
+            color: colors.tint.primary,
+            fontSize: typography.caption?.size || 12,
+            fontWeight: "700",
+          }}
+        >
+          Active
+        </Text>
+      </View>
+    </View>
+
+    {/* Description */}
+    {!!p.description && (
+      <Text
+        style={{
+          color: colors.text.secondary,
+          marginTop: spacing.md,
+          fontSize: typography.body.size,
+          lineHeight: typography.body.lineHeight,
+        }}
+      >
+        {p.description}
+      </Text>
+    )}
+
+    {/* Preview / Meta Block */}
+    <View
+      style={{
+        marginTop: spacing.md,
+        backgroundColor: colors.surface.secondary,
+        borderRadius: radii.lg,
+        padding: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <View>
+        <Text
+          style={{
+            color: colors.text.primary,
+            fontWeight: "600",
+          }}
+        >
+          View Project
+        </Text>
+
+        <Text
+          style={{
+            color: colors.text.tertiary,
+            marginTop: 4,
+            fontSize: typography.bodySm.size,
+          }}
+        >
+          Track progress and updates
+        </Text>
+      </View>
+
+      <View
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 999,
+          backgroundColor: colors.tint.primary + "15",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text
+          style={{
+            color: colors.tint.primary,
+            fontWeight: "700",
+          }}
+        >
+          →
+        </Text>
+      </View>
+    </View>
+  </View>
+</FeedCard>
             ))
           )}
         </ScrollView>
@@ -299,7 +396,7 @@ export default function ProfileProjects({ userId }: { userId: string }) {
       >
         <GestureDetector gesture={pan}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
           >
             <Animated.View
               style={[
