@@ -112,7 +112,7 @@ export const storyRingGradient = [
 // Semantic palette contract.
 // ─────────────────────────────────────────────────────────────────────────
 export interface ColorPalette {
-  bg: { canvas: string; elevated: string; muted: string, primary: string, accentDim: string };
+  bg: { canvas: string; elevated: string; muted: string, primary: string, accentDim: string, transparency: string };
   navbar: { text: string; activeText: string };
   surface: {
     primary: string;
@@ -163,7 +163,8 @@ export const lightPalette: ColorPalette = {
     elevated: "#FFFFFF",
     muted: "#F4F4F6",
     primary: "#ffffff",
-    accentDim: "#fdf8e7"
+    accentDim: "#fdf8e7",
+    transparency: "#FFFFFF"
   },
   surface: {
     primary: "#FFFFFF",
@@ -223,7 +224,8 @@ export const darkPalette: ColorPalette = {
     elevated: "#0e0e121c",
     muted: "#15151B",
     primary: "#0A0A0A",
-    accentDim: "#24280B"
+    accentDim: "#24280B",
+    transparency: "#0e0e1200"
   },
   surface: {
     primary: "#0E0E12",

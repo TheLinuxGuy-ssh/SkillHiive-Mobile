@@ -22,6 +22,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScreenWithHeader } from "@/components/ScreenWithHeader";
 
 const LOGO_SIZE = 50;
 
@@ -128,6 +129,7 @@ const Index = () => {
     // renders above tab bars and headers. The real fix is wrapping
     // your root _layout.tsx with <BottomSheetModalProvider> —
     // see note below this component.
+    <ScreenWithHeader>
     <View
       style={{ flex: 1, backgroundColor: colors.bg.muted }}
       onLayout={(e: LayoutChangeEvent) => {
@@ -284,6 +286,7 @@ const Index = () => {
         </BottomSheetView>
       </BottomSheetModal>
     </View>
+    </ScreenWithHeader>
   );
 };
 

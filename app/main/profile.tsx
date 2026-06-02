@@ -102,7 +102,6 @@ export default function Profile() {
 
             {/* ── Stats bar ── */}
             <View style={[styles.statsBar, { backgroundColor: SURFACE, borderColor: BORDER, borderRadius: R }]}>
-              <ProfileStatItem value={profile?.followers || 0} label="Allies"      showDivider />
               <ProfileStatItem value={profile?.following || 0} label="Allied With" showDivider />
               <ProfileStatItem value="12"                      label="Streak" />
             </View>

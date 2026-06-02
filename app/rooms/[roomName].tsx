@@ -48,6 +48,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+// ─── PiP hook (lives at hooks/usePipMode.ts) ─────────────────────────────────
+import { PIP_H, PIP_W, usePipMode } from "@/hooks/usePipMode";
 
 registerGlobals();
 
@@ -56,6 +58,9 @@ const TOKEN_ENDPOINT = "https://api.skillhivelabs.com/getToken";
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 const SIDEBAR_W = Math.min(300, SCREEN_W * 0.78);
 const MONO = Platform.OS === "ios" ? "Menlo" : "monospace";
+
+// ── Active-speaker debounce: wait this long before promoting a new speaker ───
+const SPEAKER_DEBOUNCE_MS = 800;
 
 type CubicleState =
   | { status: "idle" }
@@ -133,7 +138,10 @@ export default function RoomScreen() {
   const [cubicleSet,      setCubicleSet]      = useState<Set<string>>(new Set());
   const [gridSize,        setGridSize]        = useState({ w: SCREEN_W, h: SCREEN_H * 0.72 });
 
-  // Flip fade — black overlay that covers the tile during camera switch
+  // ── PiP ───────────────────────────────────────────────────────────────────
+  const pip = usePipMode();
+
+  // Flip fade
   const [flipFading,  setFlipFading]  = useState(false);
   const flipFadeAnim  = useRef(new Animated.Value(0)).current;
 
@@ -199,7 +207,7 @@ export default function RoomScreen() {
     ]).start(() => setSidebarOpen(false));
   }
 
-  // ── Init (runs after lobby confirms) ─────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => { if (lobbyDone) init(); }, [lobbyDone]);
 
   async function init() {
@@ -358,7 +366,7 @@ export default function RoomScreen() {
     cubicleRoomRef.current = r; return r;
   }, [cubicleToken]);
 
-  // ── handleConnected — fires exactly once per mount (connectedRef guard) ───
+  // ── handleConnected ───────────────────────────────────────────────────────
   const handleConnected = useCallback(async () => {
     if (connectedRef.current) return;
     connectedRef.current = true;
@@ -437,18 +445,13 @@ export default function RoomScreen() {
     if (lp.identity) setCamOffSet((p) => { const s = new Set(p); actual ? s.delete(lp.identity) : s.add(lp.identity); return s; });
   }
 
-  // ── Flip camera — black fade covers the tile during the switch ────────────
   async function flipCamera() {
     const lp = roomRef.current?.localParticipant; if (!lp) return;
     const nextFront = !isFrontCam;
-
-    // 1. Fade black overlay IN before touching any track
     setFlipFading(true);
     await new Promise<void>((res) => {
       Animated.timing(flipFadeAnim, { toValue: 1, duration: 120, useNativeDriver: true }).start(() => res());
     });
-
-    // 2. Switch tracks
     try {
       const pub = lp.getTrackPublication(Track.Source.Camera);
       if (pub?.track) await lp.unpublishTrack(pub.track);
@@ -459,8 +462,6 @@ export default function RoomScreen() {
     } catch (e: any) {
       Alert.alert("Camera flip failed", e.message);
     }
-
-    // 3. Wait for the new track's first frame via LocalTrackPublished
     const r = roomRef.current;
     if (r) {
       await new Promise<void>((res) => {
@@ -469,11 +470,7 @@ export default function RoomScreen() {
         setTimeout(() => { r.off(RoomEvent.LocalTrackPublished, done); res(); }, 1500);
       });
     }
-
-    // 4. Small buffer so the first frame actually paints
     await new Promise((res) => setTimeout(res, 80));
-
-    // 5. Fade overlay OUT
     Animated.timing(flipFadeAnim, { toValue: 0, duration: 180, useNativeDriver: true })
       .start(() => setFlipFading(false));
   }
@@ -555,49 +552,110 @@ export default function RoomScreen() {
     );
   }
 
+  // ── Full-screen room UI (shown inside LiveKitRoom regardless of PiP mode) ─
+  const roomUI = (
+    <View style={[styles.root, { backgroundColor: colors.bg.canvas }]} {...edgePan.panHandlers}>
+      {/* ── Drag handle — swipe down to enter PiP ── */}
+      <View style={styles.pipHandleHitArea} {...pip.swipeDownPan.panHandlers}>
+        <View style={[styles.pipHandle, { backgroundColor: colors.border.subtle }]} />
+      </View>
+
+      <SafeAreaView edges={["top"]} style={[styles.topBarWrap, { backgroundColor: colors.surface.primary, borderBottomColor: colors.border.subtle }]}>
+        <TopBar
+          roomName={roomName ?? "Room"} participantCount={participants.length}
+          onParticipants={commitOpen} focusedIdentity={focusedIdentity} onUnfocus={unfocusParticipant}
+          colors={colors} inCubicle={cubicle.status === "active"}
+          cubiclePartner={cubicle.status === "active" ? cubicle.partnerIdentity : null}
+          onEndCubicle={endCubicle} sessionPhase={phaseState.phase} sessionRemainingSeconds={phaseState.remainingSeconds}
+          onMinimise={pip.enterPip}
+        />
+      </SafeAreaView>
+
+      <View style={styles.gridWrap} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setGridSize({ w: width, h: height }); }}>
+        <ConferenceView
+          focusedIdentity={focusedIdentity} onFocus={focusParticipant} onUnfocus={unfocusParticipant}
+          camOffSet={camOffSet} cubicleSet={cubicleSet} gridW={gridSize.w} gridH={gridSize.h}
+          colors={colors} onDoubleTap={sendCubicleRequest} myIdentity={profile?.username ?? ""}
+          flipFadeAnim={flipFadeAnim} flipFading={flipFading}
+          isPip={false}
+        />
+      </View>
+
+      <SafeAreaView edges={["bottom"]} style={[styles.ctrlWrap, { backgroundColor: colors.surface.primary, borderTopColor: colors.border.subtle }]}>
+        <ControlBar
+          micEnabled={micEnabled} camEnabled={camEnabled} isFrontCam={isFrontCam} outputLabel={activeDevice.name}
+          onMic={toggleMic} onCam={toggleCam} onFlip={flipCamera} onOutput={showOutputPicker} onLeave={leave}
+          colors={colors} lockedForCubicle={cubicle.status === "active"} sessionPhase={phaseState.phase}
+          focusRemainingSeconds={phaseState.phase === "focus" ? phaseState.remainingSeconds : 0}
+        />
+      </SafeAreaView>
+
+      <Animated.View style={[styles.scrim, { opacity: sidebarOpacity }]} pointerEvents={sidebarOpen ? "auto" : "none"}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={commitClose} />
+      </Animated.View>
+      <Animated.View style={[styles.sidebarShell, { transform: [{ translateX: sidebarX }] }]} {...sidePan.panHandlers}>
+        <ParticipantsSidebar participants={participants} cubicleSet={cubicleSet} onClose={commitClose} colors={colors} />
+      </Animated.View>
+    </View>
+  );
+
   return (
     <>
       <LiveKitRoom serverUrl={LIVEKIT_URL} token={token} connect room={room}
         onConnected={handleConnected} onDisconnected={handleDisconnected}
-        onError={(e) => Alert.alert("Connection error", e?.message ?? "Unknown")}
       >
         <StatusBar barStyle="light-content" backgroundColor={colors.bg.canvas} />
-        <View style={[styles.root, { backgroundColor: colors.bg.canvas }]} {...edgePan.panHandlers}>
-          <SafeAreaView edges={["top"]} style={[styles.topBarWrap, { backgroundColor: colors.surface.primary, borderBottomColor: colors.border.subtle }]}>
-            <TopBar
-              roomName={roomName ?? "Room"} participantCount={participants.length}
-              onParticipants={commitOpen} focusedIdentity={focusedIdentity} onUnfocus={unfocusParticipant}
-              colors={colors} inCubicle={cubicle.status === "active"}
-              cubiclePartner={cubicle.status === "active" ? cubicle.partnerIdentity : null}
-              onEndCubicle={endCubicle} sessionPhase={phaseState.phase} sessionRemainingSeconds={phaseState.remainingSeconds}
-            />
-          </SafeAreaView>
 
-          <View style={styles.gridWrap} onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setGridSize({ w: width, h: height }); }}>
-            <ConferenceView
-              focusedIdentity={focusedIdentity} onFocus={focusParticipant} onUnfocus={unfocusParticipant}
-              camOffSet={camOffSet} cubicleSet={cubicleSet} gridW={gridSize.w} gridH={gridSize.h}
-              colors={colors} onDoubleTap={sendCubicleRequest} myIdentity={profile?.username ?? ""}
-              flipFadeAnim={flipFadeAnim} flipFading={flipFading}
-            />
-          </View>
+        {/* ── Full-screen mode ── */}
+        {!pip.isPip && roomUI}
 
-          <SafeAreaView edges={["bottom"]} style={[styles.ctrlWrap, { backgroundColor: colors.surface.primary, borderTopColor: colors.border.subtle }]}>
-            <ControlBar
-              micEnabled={micEnabled} camEnabled={camEnabled} isFrontCam={isFrontCam} outputLabel={activeDevice.name}
-              onMic={toggleMic} onCam={toggleCam} onFlip={flipCamera} onOutput={showOutputPicker} onLeave={leave}
-              colors={colors} lockedForCubicle={cubicle.status === "active"} sessionPhase={phaseState.phase}
-              focusRemainingSeconds={phaseState.phase === "focus" ? phaseState.remainingSeconds : 0}
+        {/* ── PiP card — rendered outside full-screen, floats above everything ── */}
+        {pip.isPip && (
+          <Animated.View
+            style={[
+              styles.pipCard,
+              {
+                width: PIP_W,
+                height: PIP_H,
+                transform: [
+                  { translateX: pip.pipAnim.x },
+                  { translateY: pip.pipAnim.y },
+                  { scale: pip.pipScale },
+                ],
+              },
+            ]}
+            {...pip.pipDragPan.panHandlers}
+          >
+            {/* Tap anywhere on pip card → restore full screen */}
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={pip.exitPip}
             />
-          </SafeAreaView>
 
-          <Animated.View style={[styles.scrim, { opacity: sidebarOpacity }]} pointerEvents={sidebarOpen ? "auto" : "none"}>
-            <Pressable style={StyleSheet.absoluteFill} onPress={commitClose} />
+            {/* Mini grid — active speaker only in PiP */}
+            <View style={[styles.pipInner, { borderColor: colors.border.strong }]}>
+              <ConferenceView
+                focusedIdentity={focusedIdentity} onFocus={focusParticipant} onUnfocus={unfocusParticipant}
+                camOffSet={camOffSet} cubicleSet={cubicleSet} gridW={PIP_W} gridH={PIP_H - 32}
+                colors={colors} onDoubleTap={() => {}} myIdentity={profile?.username ?? ""}
+                flipFadeAnim={flipFadeAnim} flipFading={flipFading}
+                isPip={true}
+              />
+
+              {/* PiP chrome bar at bottom */}
+              <View style={[styles.pipBar, { backgroundColor: colors.surface.primary + "ee" }]}>
+                <View style={[styles.pipLiveDot, { backgroundColor: colors.tint.danger }]} />
+                <Text style={[styles.pipRoomName, { color: colors.text.primary }]} numberOfLines={1}>
+                  {roomName}
+                </Text>
+                <TouchableOpacity onPress={pip.exitPip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="maximize-2" size={13} color={colors.text.secondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
           </Animated.View>
-          <Animated.View style={[styles.sidebarShell, { transform: [{ translateX: sidebarX }] }]} {...sidePan.panHandlers}>
-            <ParticipantsSidebar participants={participants} cubicleSet={cubicleSet} onClose={commitClose} colors={colors} />
-          </Animated.View>
-        </View>
+        )}
       </LiveKitRoom>
 
       {cubicle.status === "active" && cubicleToken && cubicleRoom && (
@@ -618,7 +676,7 @@ export default function RoomScreen() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CubicleOverlay
+// CubicleOverlay  (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function CubicleOverlay({ partnerIdentity, onEnd, colors }: { partnerIdentity: string; onEnd: () => void; colors: any }) {
@@ -628,7 +686,7 @@ function CubicleOverlay({ partnerIdentity, onEnd, colors }: { partnerIdentity: s
   const [myTrackRef,    setMyTrackRef]    = useState<TrackReference | null>(null);
   const [myTrackSid,    setMyTrackSid]    = useState<string | null>(null);
   const [partnerReady,  setPartnerReady]  = useState(false);
-  const lpRef          = useRef(localParticipant);
+  const lpRef           = useRef(localParticipant);
   const partnerReadyRef = useRef(false);
 
   useEffect(() => { lpRef.current = localParticipant; }, [localParticipant]);
@@ -719,12 +777,13 @@ function CubicleOverlay({ partnerIdentity, onEnd, colors }: { partnerIdentity: s
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TopBar
+// TopBar  — added onMinimise prop
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, onUnfocus, colors, inCubicle, cubiclePartner, onEndCubicle, sessionPhase, sessionRemainingSeconds }: {
+function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, onUnfocus, colors, inCubicle, cubiclePartner, onEndCubicle, sessionPhase, sessionRemainingSeconds, onMinimise }: {
   roomName: string; participantCount: number; onParticipants: () => void; focusedIdentity: string | null; onUnfocus: () => void; colors: any;
   inCubicle: boolean; cubiclePartner: string | null; onEndCubicle: () => void; sessionPhase: "waiting" | "focus" | "break"; sessionRemainingSeconds: number;
+  onMinimise: () => void;
 }) {
   const phaseColor = sessionPhase === "break" ? colors.tint.success : sessionPhase === "focus" ? colors.tint.accent : colors.text.tertiary;
   const phaseLabel = sessionPhase === "focus" ? "Focus" : sessionPhase === "break" ? "Break" : null;
@@ -748,6 +807,15 @@ function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, o
         </View>
       )}
       <View style={styles.topRight}>
+        {/* ── Minimise to PiP ── */}
+        <TouchableOpacity
+          style={[styles.participantsBtn, { backgroundColor: colors.surface.secondary, borderColor: colors.border.subtle }]}
+          onPress={onMinimise}
+          activeOpacity={0.72}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Feather name="minus" size={15} color={colors.text.primary} />
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.participantsBtn, { backgroundColor: colors.surface.secondary, borderColor: colors.border.subtle }]} onPress={onParticipants} activeOpacity={0.72}>
           <Feather name="users" size={15} color={colors.text.primary} />
           <Text style={[styles.participantsBtnCount, { color: colors.text.primary }]}>{participantCount}</Text>
@@ -758,18 +826,58 @@ function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, o
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ConferenceView
+// ConferenceView — added isPip prop + active speaker auto-sort
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ConferenceView({ focusedIdentity, onFocus, onUnfocus, camOffSet, cubicleSet, gridW, gridH, colors, onDoubleTap, myIdentity, flipFadeAnim, flipFading }: {
+function ConferenceView({ focusedIdentity, onFocus, onUnfocus, camOffSet, cubicleSet, gridW, gridH, colors, onDoubleTap, myIdentity, flipFadeAnim, flipFading, isPip }: {
   focusedIdentity: string | null; onFocus: (id: string) => void; onUnfocus: () => void;
   camOffSet: Set<string>; cubicleSet: Set<string>; gridW: number; gridH: number;
   colors: any; onDoubleTap: (id: string) => void; myIdentity: string;
   flipFadeAnim: Animated.Value; flipFading: boolean;
+  isPip: boolean;
 }) {
-  const tracks = useTracks([Track.Source.Camera]);
+  const rawTracks  = useTracks([Track.Source.Camera]);
   const [activePage, setActivePage] = useState(0);
   const pageScrollRef = useRef<ScrollView>(null);
+
+  // ── Active-speaker sort ───────────────────────────────────────────────────
+  // Debounced: we only promote a new speaker after SPEAKER_DEBOUNCE_MS of
+  // continuous speaking, preventing rapid thrash during normal conversation.
+  const [topIdentity, setTopIdentity] = useState<string | null>(null);
+  const debounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speakingRef   = useRef<string | null>(null);
+
+  useEffect(() => {
+    const speaking = rawTracks.find(
+      (t) => t.participant.isSpeaking && t.participant.identity !== myIdentity
+    );
+    const id = speaking?.participant.identity ?? null;
+
+    if (id === speakingRef.current) return; // same speaker, nothing to do
+    speakingRef.current = id;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (id) {
+      debounceRef.current = setTimeout(() => setTopIdentity(id), SPEAKER_DEBOUNCE_MS);
+    } else {
+      // No one speaking → keep current top for 2 s then reset
+      debounceRef.current = setTimeout(() => setTopIdentity(null), 2000);
+    }
+  }, [rawTracks.map((t) => `${t.participant.identity}:${t.participant.isSpeaking}`).join(",")]);
+
+  // Sort: active speaker first, then my own track, then rest alphabetically
+  const tracks = useMemo(() => {
+    const sorted = [...rawTracks].sort((a, b) => {
+      const aId = a.participant.identity, bId = b.participant.identity;
+      if (aId === topIdentity) return -1;
+      if (bId === topIdentity) return  1;
+      if (aId === myIdentity)  return -1;
+      if (bId === myIdentity)  return  1;
+      return aId.localeCompare(bId);
+    });
+    // In PiP we only render the top 2 tracks for performance
+    return isPip ? sorted.slice(0, 2) : sorted;
+  }, [rawTracks, topIdentity, myIdentity, isPip]);
 
   useEffect(() => {
     const total = Math.ceil(Math.max(tracks.length, 1) / TILES_PER_PAGE);
@@ -786,6 +894,11 @@ function ConferenceView({ focusedIdentity, onFocus, onUnfocus, camOffSet, cubicl
   });
 
   if (tracks.length === 0) {
+    if (isPip) return (
+      <View style={[{ flex: 1, alignItems: "center", justifyContent: "center" }]}>
+        <Text style={{ color: colors.text.tertiary, fontSize: 11 }}>Waiting…</Text>
+      </View>
+    );
     return (
       <View style={styles.empty}>
         <Text style={[styles.emptyIcon,  { color: colors.surface.raised }]}>⬡</Text>
@@ -795,6 +908,19 @@ function ConferenceView({ focusedIdentity, onFocus, onUnfocus, camOffSet, cubicl
     );
   }
 
+  // ── PiP mode: simple 2-up layout, no interaction chrome ──────────────────
+  if (isPip) {
+    const tH = gridH / Math.min(tracks.length, 2);
+    return (
+      <View style={{ width: gridW, height: gridH }}>
+        {tracks.map((r) => (
+          <ParticipantTile key={r.participant.identity} {...tp(r)} width={gridW} height={tH} borderRadius={0} />
+        ))}
+      </View>
+    );
+  }
+
+  // ── Full mode (unchanged layout logic) ───────────────────────────────────
   if (focusedIdentity) {
     const ft = tracks.find((t) => t.participant.identity === focusedIdentity);
     const ot = tracks.filter((t) => t.participant.identity !== focusedIdentity);
@@ -855,7 +981,7 @@ function ConferenceView({ focusedIdentity, onFocus, onUnfocus, camOffSet, cubicl
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ParticipantTile
+// ParticipantTile  (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ParticipantTile({ trackRef, width, height, isCamOff, inCubicle, onFocus, onUnfocus, isFocused, borderRadius, colors, onDoubleTap, isMe, flipFadeAnim, flipFading }: {
@@ -916,7 +1042,6 @@ function ParticipantTile({ trackRef, width, height, isCamOff, inCubicle, onFocus
         onCubicle={!isMe ? () => { setMenuVisible(false); onDoubleTap(p.identity); } : undefined}
         colors={colors}
       />
-      {/* Black fade overlay during camera flip — only on my own tile */}
       {flipFading && flipFadeAnim && (
         <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "#000", opacity: flipFadeAnim, zIndex: 99 }]} />
       )}
@@ -925,7 +1050,7 @@ function ParticipantTile({ trackRef, width, height, isCamOff, inCubicle, onFocus
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AvatarTile
+// AvatarTile  (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AvatarTile({ identity, width, height, isFocused, inCubicle, onFocus, onUnfocus, borderRadius, colors, onDoubleTap, isMe }: {
@@ -968,7 +1093,7 @@ function AvatarTile({ identity, width, height, isFocused, inCubicle, onFocus, on
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TileMenu
+// TileMenu  (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function TileMenu({ visible, identity, isFocused, onClose, onFocus, onUnfocus, onCubicle, colors }: {
@@ -1015,7 +1140,7 @@ function SpeakingBars({ color }: { color: string }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ParticipantsSidebar
+// ParticipantsSidebar  (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ParticipantsSidebar({ participants, cubicleSet, onClose, colors }: { participants: Participant[]; cubicleSet: Set<string>; onClose: () => void; colors: any }) {
@@ -1052,7 +1177,7 @@ function ParticipantsSidebar({ participants, cubicleSet, onClose, colors }: { pa
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ControlBar
+// ControlBar  (unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ControlBar({ micEnabled, camEnabled, isFrontCam, outputLabel, onMic, onCam, onFlip, onOutput, onLeave, colors, lockedForCubicle, sessionPhase, focusRemainingSeconds }: {
@@ -1097,6 +1222,20 @@ const styles = StyleSheet.create({
   root:                 { flex: 1 },
   loader:               { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
   loaderText:           { fontSize: 15, fontWeight: "500" },
+
+  // ── PiP drag handle (invisible hit area above the top bar) ───────────────
+  pipHandleHitArea:     { alignItems: "center", paddingVertical: 8, zIndex: 5 },
+  pipHandle:            { width: 36, height: 4, borderRadius: 2 },
+
+  // ── Floating PiP card ────────────────────────────────────────────────────
+  pipCard:              { position: "absolute", zIndex: 50, borderRadius: 14, overflow: "hidden",
+                          shadowColor: "#000", shadowOpacity: 0.45, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 12 },
+  pipInner:             { flex: 1, borderRadius: 14, overflow: "hidden", borderWidth: 1.5 },
+  pipBar:               { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", alignItems: "center",
+                          paddingHorizontal: 10, paddingVertical: 6, gap: 6, height: 32 },
+  pipLiveDot:           { width: 6, height: 6, borderRadius: 3 },
+  pipRoomName:          { flex: 1, fontSize: 10, fontWeight: "600" },
+
   topBarWrap:           { borderBottomWidth: 1 },
   topBar:               { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 11 },
   topLeft:              { flexDirection: "row", alignItems: "center", gap: 9, flex: 1, overflow: "hidden" },
