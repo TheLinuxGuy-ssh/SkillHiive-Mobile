@@ -1,5 +1,5 @@
 import { useTheme } from "@/hooks/useTheme";
-import { BlurView } from "@react-native-community/blur";
+import { BlurView } from "expo-blur";
 import { GlassView, isLiquidGlassAvailable } from "expo-glass-effect";
 import * as Haptics from "expo-haptics";
 import React, { useLayoutEffect, useRef } from "react";
@@ -82,7 +82,7 @@ export const LinkNav = ({ state, navigation, onScrollRef }: any) => {
     return (
     <View style={styles.nav}>
       <View style={{ borderRadius: 30, overflow: "hidden" }}>
-<BlurView style={{ borderRadius: 30 }} blurType="dark" blurAmount={12} overlayColor="transparent">
+<BlurView style={{ borderRadius: 50 }} intensity={80} tint="dark">
         <View style={[styles.container, { backgroundColor: colors.bg.elevated, borderColor: colors.border.default }]}>
         <Animated.View style={[styles.pill, pillStyle, {    backgroundColor: colors.surface.skillhive,}]} />
 
