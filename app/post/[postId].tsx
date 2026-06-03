@@ -28,25 +28,27 @@ import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/lib/supabase";
 import { Image } from "expo-image";
 import ActionRow from "@/components/ui/ActionRow";
+import { useProfile } from "@/hooks/profileContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ─────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────
 
+
 type PostDetail = {
   id:             string;
+  user_id:        string;
   post_type:      "project" | "media" | "offer";
   caption:        string | null;
   likes_count:    number;
   comments_count: number;
   created_at:     string;
-  user_id:        string;
-
   profiles: {
+    id:       string;
     username: string | null;
     avatar:   string | null;
-  } | null;
-
+  };
   project_posts: {
     title:       string;
     description: string | null;
@@ -54,7 +56,6 @@ type PostDetail = {
     ended_at:    string | null;
     status:      "active" | "completed" | "paused";
   } | null;
-
   offer_posts: {
     company:      string | null;
     role:         string | null;
@@ -62,7 +63,6 @@ type PostDetail = {
     location:     string | null;
     offer_type:   string | null;
   } | null;
-
   post_images: {
     url:        string;
     sort_order: number;
@@ -79,7 +79,6 @@ type Comment = {
     username: string | null;
   } | null;
 };
-
 
 // ─────────────────────────────────────────
 // HELPERS
@@ -111,15 +110,36 @@ function toInitials(name: string): string {
 // ─────────────────────────────────────────
 
 const POST_DETAIL_QUERY = `
-  id, post_type, caption, likes_count, comments_count, created_at, user_id,
-  profiles:profiles!posts_user_id_profiles_fkey ( username, avatar ),
+  id,
+  user_id,
+  post_type,
+  caption,
+  likes_count,
+  comments_count,
+  created_at,
+  profiles:profiles!posts_user_id_profiles_fkey (
+    id,
+    username,
+    avatar
+  ),
   project_posts:project_posts!project_posts_post_id_fkey (
-    title, description, started_at, ended_at, status
+    title,
+    description,
+    started_at,
+    ended_at,
+    status
   ),
   offer_posts:offer_posts!offer_posts_post_id_fkey (
-    company, role, salary_range, location, offer_type
+    company,
+    role,
+    salary_range,
+    location,
+    offer_type
   ),
-  post_images:post_images!post_images_post_id_fkey ( url, sort_order )
+  post_images:post_images!post_images_post_id_fkey (
+    url,
+    sort_order
+  )
 `;
 
 // ─────────────────────────────────────────
@@ -153,7 +173,7 @@ function CommentRow({
   radii:         any;
 }) {
   const isOwn   = comment.user_id === currentUserId;
-  const name = comment.profiles?.username ?? "Unknown";
+  const name    = comment.profiles?.username ?? "Unknown";
   const isReply = !!comment.parent_id;
 
   return (
@@ -200,11 +220,12 @@ function CommentRow({
 // ─────────────────────────────────────────
 
 export default function PostDetailScreen() {
-  const { postId }                  = useLocalSearchParams<{ postId: string }>();
-  const router                      = useRouter();
+  const { postId }                             = useLocalSearchParams<{ postId: string }>();
+  const router                                 = useRouter();
   const { colors, spacing, radii, typography } = useTheme();
+  const { profile: myProfile }                 = useProfile();
 
-  // ── data ──
+  // ── post ──
   const [post,          setPost]          = useState<PostDetail | null>(null);
   const [comments,      setComments]      = useState<Comment[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -213,9 +234,9 @@ export default function PostDetailScreen() {
   const [error,         setError]         = useState<string | null>(null);
 
   // ── comment input ──
-  const [commentText,  setCommentText]  = useState("");
-  const [replyTo,      setReplyTo]      = useState<Comment | null>(null);
-  const [submitting,   setSubmitting]   = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [replyTo,     setReplyTo]     = useState<Comment | null>(null);
+  const [submitting,  setSubmitting]  = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   // ── edit mode (owner only) ──
@@ -227,6 +248,8 @@ export default function PostDetailScreen() {
 
   const isOwner = !!currentUserId && !!post && post.user_id === currentUserId;
 
+  const insets = useSafeAreaInsets();
+
   // ── fetch ──
   const fetchAll = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -237,25 +260,30 @@ export default function PostDetailScreen() {
       supabase.auth.getUser(),
       supabase.from("posts").select(POST_DETAIL_QUERY).eq("id", postId).single(),
       supabase
-  .from("comments")
-  .select("id, body, created_at, parent_id, user_id, profiles:profiles(username)")
-  .eq("post_id", postId)
-  .order("created_at", { ascending: true }),
+        .from("comments")
+        .select("id, body, created_at, parent_id, user_id, profiles:profiles(username)")
+        .eq("post_id", postId)
+        .order("created_at", { ascending: true }),
     ]);
-    console.log("commentsRes.data:", JSON.stringify(commentsRes.data, null, 2));
-console.log("commentsRes.error:", commentsRes.error);
 
     setCurrentUserId(user?.id ?? null);
 
     if (postRes.error) {
       setError("Couldn't load post.");
     } else {
-      setPost(postRes.data as unknown as PostDetail);
-      setEditCaption(postRes.data?.caption ?? "");
-      const pp = (postRes.data?.project_posts as any)?.[0];
-      if (pp) {
-        setEditTitle(pp.title ?? "");
-        setEditDesc(pp.description ?? "");
+      // Normalize — Supabase can return joined relations as arrays
+      const raw = postRes.data as any;
+      const normalized: PostDetail = {
+        ...raw,
+        profiles:      Array.isArray(raw.profiles)      ? raw.profiles[0]      : raw.profiles,
+        project_posts: Array.isArray(raw.project_posts) ? raw.project_posts[0] : raw.project_posts,
+        offer_posts:   Array.isArray(raw.offer_posts)   ? raw.offer_posts[0]   : raw.offer_posts,
+      };
+      setPost(normalized);
+      setEditCaption(normalized.caption ?? "");
+      if (normalized.project_posts) {
+        setEditTitle(normalized.project_posts.title ?? "");
+        setEditDesc(normalized.project_posts.description ?? "");
       }
     }
 
@@ -267,29 +295,29 @@ console.log("commentsRes.error:", commentsRes.error);
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── submit comment ──
- async function submitComment() {
-  if (!commentText.trim() || submitting) return;
-  setSubmitting(true);
+  async function submitComment() {
+    if (!commentText.trim() || submitting) return;
+    setSubmitting(true);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) { setSubmitting(false); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSubmitting(false); return; }
 
-  const { error } = await supabase.from("comments").insert({
-    post_id:   postId,
-    user_id:   user.id,
-    body:      commentText.trim(),
-    parent_id: replyTo?.id ?? null,
-  });
+    const { error } = await supabase.from("comments").insert({
+      post_id:   postId,
+      user_id:   user.id,
+      body:      commentText.trim(),
+      parent_id: replyTo?.id ?? null,
+    });
 
-
-  if (!error) {
-    setCommentText("");
-    setReplyTo(null);
-    fetchAll(true);
-    inputRef.current?.blur();
+    if (!error) {
+      setCommentText("");
+      setReplyTo(null);
+      fetchAll(true);
+      inputRef.current?.blur();
+    }
+    setSubmitting(false);
   }
-  setSubmitting(false);
-}
+
   // ── delete comment ──
   async function deleteComment(id: string) {
     Alert.alert("Delete comment", "Are you sure?", [
@@ -343,26 +371,55 @@ console.log("commentsRes.error:", commentsRes.error);
 
   function renderPostBody() {
     if (!post) return null;
-    const pp         = post.project_posts;
-const op         = post.offer_posts;
-const authorName = post.profiles?.username ?? "Unknown";
-const img = [...(post.post_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0];
 
-    
+    const pp  = post.project_posts;
+    const op  = post.offer_posts;
+    const img = [...(post.post_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0];
+
     return (
-      <View style={{ paddingHorizontal: spacing.base, paddingTop: spacing.base }}>
+      <View style={{ paddingHorizontal: spacing.base }}>
 
-        {/* Author */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md }}>
-          <Avatar name={authorName} size={40} bg={colors.surface.skillhive} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text.primary, fontWeight: "700", fontSize: typography.body.size }}>
-              {authorName}
-            </Text>
-            <Text style={{ color: colors.text.tertiary, fontSize: 11, marginTop: 1 }}>
-              {timeAgo(post.created_at)}
-            </Text>
-          </View>
+        {/* ── Author row ── */}
+        <View style={{ flexDirection: "row", paddingTop: insets.top + spacing.md, alignItems: "center", gap: spacing.sm, marginBottom: spacing.md }}>
+          <Pressable
+            style={{ flex: 1, flexDirection: "row" }}
+            onPress={() => {
+              if (post.user_id === myProfile?.id) return;
+              router.push(`/profile/${post.user_id}`);
+            }}
+          >
+            {post.profiles?.avatar ? (
+              <Image
+                source={{ uri: post.profiles.avatar }}
+                style={{
+                  width: 32, height: 32, borderRadius: 16,
+                  marginRight: spacing.sm,
+                  backgroundColor: colors.surface.secondary,
+                }}
+              />
+            ) : (
+              <View
+                style={{
+                  width: 32, height: 32, borderRadius: 16,
+                  marginRight: spacing.sm,
+                  backgroundColor: colors.surface.secondary,
+                  justifyContent: "center", alignItems: "center",
+                }}
+              >
+                <Text style={{ color: colors.text.tertiary, fontSize: 13, fontWeight: "600" }}>
+                  {post.profiles?.username?.[0]?.toUpperCase() ?? "?"}
+                </Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.text.secondary, fontSize: typography.bodySm.size, fontWeight: "600" }}>
+                {post.profiles?.username ?? "Unknown"}
+              </Text>
+              <Text style={{ color: colors.text.tertiary, fontSize: typography.caption?.size ?? 11, marginTop: 1 }}>
+                {timeAgo(post.created_at)}
+              </Text>
+            </View>
+          </Pressable>
 
           {/* Post type badge */}
           <View style={{
@@ -540,7 +597,6 @@ const img = [...(post.post_images ?? [])].sort((a, b) => a.sort_order - b.sort_o
           borderBottomWidth: 1, borderBottomColor: colors.border.subtle,
           marginBottom: spacing.lg,
         }}>
-
           <ActionRow postId={post.id} likes={post.likes_count} comments={post.comments_count} />
         </View>
 
@@ -603,10 +659,10 @@ const img = [...(post.post_images ?? [])].sort((a, b) => a.sort_order - b.sort_o
 
         <Text style={{ flex: 1, color: colors.text.primary, fontSize: typography.body.size, fontWeight: "700" }}>
           {post.post_type === "project" && post.project_posts
-  ? post.project_posts.title
-  : post.post_type === "offer" && post.offer_posts
-  ? post.offer_posts.role ?? "Offer"
-  : "Post"}
+            ? post.project_posts.title
+            : post.post_type === "offer" && post.offer_posts
+            ? post.offer_posts.role ?? "Offer"
+            : "Post"}
         </Text>
 
         {/* Owner actions */}

@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import React, { useLayoutEffect, useRef } from "react";
 import {
   LayoutRectangle,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -82,7 +83,7 @@ export const LinkNav = ({ state, navigation, onScrollRef }: any) => {
     return (
     <View style={styles.nav}>
       <View style={{ borderRadius: 30, overflow: "hidden" }}>
-<BlurView style={{ borderRadius: 50 }} intensity={80} tint="dark">
+<BlurView style={{ borderRadius: 50 }} intensity={Platform.OS == "android" ? 100 : 10} tint="dark">
         <View style={[styles.container, { backgroundColor: colors.bg.elevated, borderColor: colors.border.default }]}>
         <Animated.View style={[styles.pill, pillStyle, {    backgroundColor: colors.surface.skillhive,}]} />
 

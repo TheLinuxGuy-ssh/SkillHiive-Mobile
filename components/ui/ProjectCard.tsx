@@ -6,6 +6,7 @@ import ActionRow from "./ActionRow";
 import FeedCard from "./FeedCard";
 import { Pressable } from "react-native";
 import { useRouter } from "expo-router";
+import { useProfile } from "@/hooks/profileContext";
 
 // ─────────────────────────────────────────
 // TYPES
@@ -14,12 +15,13 @@ import { useRouter } from "expo-router";
 export type ProjectStatus = "active" | "completed" | "paused";
 
 export type ProjectCardData = {
-  user_id:        string;
+  user_id?:        string;
   post_id:        string;
   caption:        string | null;
   likes_count:    number;
   comments_count: number;
   title:          string;
+  created_at:     string;
   description:    string | null;
   started_at:     string | null;
   ended_at:       string | null;
@@ -38,6 +40,15 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bg: s
   completed: { label: "Completed", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
   paused:    { label: "Paused",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
 };
+
+
+function timeAgo(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", year: "numeric" });
@@ -68,8 +79,12 @@ export default function ProjectCard({ data, onPress }: Props) {
   const { colors, spacing, radii, typography } = useTheme();
   const router = useRouter();
   const statusCfg  = STATUS_CONFIG[data.status];
+  const { profile: myProfile } = useProfile();
   const duration   = deriveDuration(data.started_at, data.ended_at);
   const hasDateRange = data.started_at || data.ended_at;
+  const timeLabel = timeAgo(data.created_at);
+  console.log(data.created_at)
+
 
   return (
     <FeedCard onPress={onPress ? () => onPress(data.post_id) : undefined}>
@@ -83,44 +98,44 @@ export default function ProjectCard({ data, onPress }: Props) {
             marginBottom:   spacing.sm,
           }}
         >
-                   <Pressable onPress={() => router.push(`/profile/${data.user_id}`)}>
-          {/* Avatar */}
-          {data.author_avatar ? (
-            <Image
-              source={{ uri: data.author_avatar }}
-              style={{
-                width: 32, height: 32, borderRadius: 16,
-                marginRight: spacing.sm,
-                backgroundColor: colors.surface.secondary,
-              }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 32, height: 32, borderRadius: 16,
-                marginRight: spacing.sm,
-                backgroundColor: colors.surface.secondary,
-                justifyContent: "center", alignItems: "center",
-              }}
-            >
-              <Text style={{ color: colors.text.tertiary, fontSize: 13, fontWeight: "600" }}>
-                {data.author_name?.[0]?.toUpperCase() ?? "?"}
-              </Text>
-            </View>
-          )}
-
-          {/* Name */}
-          <Text
-            style={{
-              flex:       1,
-              color:      colors.text.secondary,
-              fontSize:   typography.bodySm.size,
-              fontWeight: "600",
-            }}
-          >
-            {data.author_name}
-          </Text>
-</Pressable>
+{data.user_id ? (
+  <Pressable style={{ flex: 1, flexDirection: "row" }} onPress={() => {
+  if (data.user_id === myProfile?.id) return;
+  router.push(`/profile/${data.user_id}`);
+}}>
+    {data.author_avatar ? (
+      <Image
+        source={{ uri: data.author_avatar }}
+        style={{
+          width: 32, height: 32, borderRadius: 16,
+          marginRight: spacing.sm,
+          backgroundColor: colors.surface.secondary,
+        }}
+      />
+    ) : (
+      <View
+        style={{
+          width: 32, height: 32, borderRadius: 16,
+          marginRight: spacing.sm,
+          backgroundColor: colors.surface.secondary,
+          justifyContent: "center", alignItems: "center",
+        }}
+      >
+        <Text style={{ color: colors.text.tertiary, fontSize: 13, fontWeight: "600" }}>
+          {data.author_name?.[0]?.toUpperCase() ?? "?"}
+        </Text>
+      </View>
+    )}
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: colors.text.secondary, fontSize: typography.bodySm.size, fontWeight: "600" }}>
+        {data.author_name}
+      </Text>
+      <Text style={{ color: colors.text.tertiary, fontSize: typography.caption?.size ?? 11, marginTop: 1 }}>
+        {timeLabel}
+      </Text>
+    </View>
+  </Pressable>
+) : null}
           {/* ── Type badge — matches OfferCard's badge style ── */}
           <View
             style={{

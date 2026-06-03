@@ -181,10 +181,10 @@ export function RoomLobby({
               styles.toggleBtn,
               {
                 backgroundColor: camOn
-                  ? colors.tint.accent + "18"
+                  ? colors.bg.accentDim + "18"
                   : colors.surface.secondary,
                 borderColor: camOn
-                  ? colors.tint.accent + "55"
+                  ? colors.surface.skillhive + "55"
                   : colors.border.subtle,
               },
             ]}
@@ -194,12 +194,12 @@ export function RoomLobby({
             <Feather
               name={camOn ? "video" : "video-off"}
               size={18}
-              color={camOn ? colors.tint.accent : colors.text.tertiary}
+              color={camOn ? colors.surface.skillhive : colors.text.tertiary}
             />
             <Text
               style={[
                 styles.toggleLabel,
-                { color: camOn ? colors.tint.accent : colors.text.tertiary },
+                { color: camOn ? colors.surface.skillhive : colors.text.tertiary },
               ]}
             >
               {camOn ? "Camera on" : "Camera off"}
@@ -230,10 +230,10 @@ export function RoomLobby({
         </Text>
 
         <TouchableOpacity
-          style={[styles.joinBtn, { backgroundColor: colors.tint.accent }]}
+          style={[styles.joinBtn, { backgroundColor: colors.surface.skillhive }]}
           onPress={() => onJoin(camOn, facing === "front")}
         >
-          <Text style={[styles.joinBtnText, { color: colors.bg.canvas }]}>
+          <Text style={[styles.joinBtnText, { color: colors.text.inverse }]}>
             Join room
           </Text>
           <Feather name="arrow-right" size={18} color={colors.bg.canvas} />
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     paddingVertical: 12,
-    borderRadius: 12,
+    // borderRadius: 12,
     borderWidth: 1,
   },
 

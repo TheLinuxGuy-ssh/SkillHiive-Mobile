@@ -6,13 +6,14 @@ import ActionRow from "./ActionRow";
 import FeedCard from "./FeedCard";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useProfile } from "@/hooks/profileContext";
 
 // ─────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────
 
 export type OfferCardData = {
-  user_id:        string;
+  user_id?:        string | null;
   post_id:        string;
   caption:        string | null;
   likes_count:    number;
@@ -63,7 +64,7 @@ function formatOfferType(raw: string | null): string {
 
 export default function OfferCard({ data, onPress }: Props) {
   const { colors, spacing, radii, typography } = useTheme();
-
+const { profile: myProfile } = useProfile();
   const initials  = toInitials(data.author_name);
   const timeLabel = timeAgo(data.created_at);
   const typeLabel = formatOfferType(data.offer_type);
@@ -81,39 +82,44 @@ export default function OfferCard({ data, onPress }: Props) {
           }}
         >
          {/* Avatar */}
-         <Pressable onPress={() => router.push(`/profile/${data.user_id}`)}>
-                   {data.author_avatar ? (
-                     <Image
-                       source={{ uri: data.author_avatar }}
-                       style={{
-                         width: 32, height: 32, borderRadius: 16,
-                         marginRight: spacing.sm,
-                         backgroundColor: colors.surface.secondary,
-                       }}
-                     />
-                   ) : (
-                     <View
-                       style={{
-                         width: 32, height: 32, borderRadius: 16,
-                         marginRight: spacing.sm,
-                         backgroundColor: colors.surface.secondary,
-                         justifyContent: "center", alignItems: "center",
-                       }}
-                     >
-                       <Text style={{ color: colors.text.tertiary, fontSize: 13, fontWeight: "600" }}>
-                         {data.author_name?.[0]?.toUpperCase() ?? "?"}
-                       </Text>
-                     </View>
-                   )}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text.secondary, fontSize: typography.bodySm.size, fontWeight: "600" }}>
-              {data.author_name}
-            </Text>
-            <Text style={{ color: colors.text.tertiary, fontSize: typography.caption?.size ?? 11, marginTop: 1 }}>
-              {timeLabel}
-            </Text>
-          </View>
-          </Pressable>
+         {data.user_id ? (
+  <Pressable style={{ flex: 1, flexDirection: "row" }} onPress={() => {
+  if (data.user_id === myProfile?.id) return;
+  router.push(`/profile/${data.user_id}`);
+}}>
+    {data.author_avatar ? (
+      <Image
+        source={{ uri: data.author_avatar }}
+        style={{
+          width: 32, height: 32, borderRadius: 16,
+          marginRight: spacing.sm,
+          backgroundColor: colors.surface.secondary,
+        }}
+      />
+    ) : (
+      <View
+        style={{
+          width: 32, height: 32, borderRadius: 16,
+          marginRight: spacing.sm,
+          backgroundColor: colors.surface.secondary,
+          justifyContent: "center", alignItems: "center",
+        }}
+      >
+        <Text style={{ color: colors.text.tertiary, fontSize: 13, fontWeight: "600" }}>
+          {data.author_name?.[0]?.toUpperCase() ?? "?"}
+        </Text>
+      </View>
+    )}
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: colors.text.secondary, fontSize: typography.bodySm.size, fontWeight: "600" }}>
+        {data.author_name}
+      </Text>
+      <Text style={{ color: colors.text.tertiary, fontSize: typography.caption?.size ?? 11, marginTop: 1 }}>
+        {timeLabel}
+      </Text>
+    </View>
+  </Pressable>
+) : null}
 
           {/* ── Type badge — same style as ProjectCard's badge ── */}
           <View

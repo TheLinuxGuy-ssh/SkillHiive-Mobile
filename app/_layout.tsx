@@ -89,6 +89,7 @@ export default function RootLayout() {
                 <Stack.Screen name="course/[id]" />
                 <Stack.Screen name="web" />
                 <Stack.Screen name="profile/[id]" />
+                <Stack.Screen name="notifactions/" />
                 <Stack.Screen
                   name="rooms/[roomName]"
                   options={{ gestureEnabled: false }}

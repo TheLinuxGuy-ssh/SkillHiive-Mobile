@@ -802,20 +802,20 @@ function TopBar({ roomName, participantCount, onParticipants, focusedIdentity, o
         )}
       </View>
       {phaseLabel && (
-        <View style={[styles.phaseBadge, { backgroundColor: phaseColor + "22", borderColor: phaseColor + "55" }]}>
-          <Text style={[styles.phaseBadgeText, { color: phaseColor, fontFamily: MONO }]}>{phaseLabel} {String(pM).padStart(2, "0")}:{String(pS).padStart(2, "0")}</Text>
+        <View style={[styles.phaseBadge, { backgroundColor: colors.bg.accentDim, borderColor: colors.surface.skillhive }]}>
+          <Text style={[styles.phaseBadgeText, { color: colors.text.skillhive, fontFamily: MONO }]}>{phaseLabel} {String(pM).padStart(2, "0")}:{String(pS).padStart(2, "0")}</Text>
         </View>
       )}
       <View style={styles.topRight}>
         {/* ── Minimise to PiP ── */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.participantsBtn, { backgroundColor: colors.surface.secondary, borderColor: colors.border.subtle }]}
           onPress={onMinimise}
           activeOpacity={0.72}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Feather name="minus" size={15} color={colors.text.primary} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity style={[styles.participantsBtn, { backgroundColor: colors.surface.secondary, borderColor: colors.border.subtle }]} onPress={onParticipants} activeOpacity={0.72}>
           <Feather name="users" size={15} color={colors.text.primary} />
           <Text style={[styles.participantsBtnCount, { color: colors.text.primary }]}>{participantCount}</Text>

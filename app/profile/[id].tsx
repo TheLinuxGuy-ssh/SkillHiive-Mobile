@@ -1,74 +1,206 @@
-import ProfileProjects from "@/components/ui/ProfileProjects";
+import OfferCard, { OfferCardData } from "@/components/ui/OfferCard";
 import ProfileStatItem from "@/components/ui/ProfileStatItem";
+import ProjectCard, { ProjectCardData } from "@/components/ui/ProjectCard";
 import { useProfile } from "@/hooks/profileContext";
 import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/lib/supabase";
 import { ImageBackground } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
-import Animated, { FadeInUp, FadeInDown } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
-const R = 12;
-const MONO = Platform.OS === "ios" ? "Courier New" : "monospace";
-const EMBER = "#fffd01";
+// ── Constants ──────────────────────────────────────────────────────────────
+const R         = 12;
+const MONO      = Platform.OS === "ios" ? "Courier New" : "monospace";
+const EMBER     = "#fffd01";
+const PAGE_SIZE = 10;
 
+// ── Types ──────────────────────────────────────────────────────────────────
 type AllyStatus = "none" | "pending_sent" | "pending_received" | "accepted" | "loading";
 
 type ViewedProfile = {
-  id: string;
-  username: string | null;
-  avatar: string | null;
-  banner: string | null;
-  bio: string | null;
+  id:          string;
+  username:    string | null;
+  avatar:      string | null;
+  banner:      string | null;
+  bio:         string | null;
   displayname: string;
-  followers: number;
-  following: number;
 };
 
+type RawPost = {
+  id:             string;
+  post_type:      "project" | "media" | "offer";
+  caption:        string | null;
+  likes_count:    number;
+  comments_count: number;
+  created_at:     string;
+  profiles: { username: string | null; avatar: string | null } | null;
+  project_posts: {
+    title:       string;
+    description: string | null;
+    started_at:  string | null;
+    ended_at:    string | null;
+    status:      "active" | "completed" | "paused";
+  } | null;
+  offer_posts: {
+    company:      string | null;
+    role:         string | null;
+    salary_range: string | null;
+    location:     string | null;
+    offer_type:   string | null;
+  } | null;
+  post_images: { url: string; sort_order: number }[] | null;
+};
+
+const FEED_QUERY = `
+  id,
+  post_type,
+  caption,
+  likes_count,
+  comments_count,
+  created_at,
+  profiles:profiles!posts_user_id_profiles_fkey (
+    username,
+    avatar
+  ),
+  project_posts:project_posts!project_posts_post_id_fkey (
+    title,
+    description,
+    started_at,
+    ended_at,
+    status
+  ),
+  offer_posts:offer_posts!offer_posts_post_id_fkey (
+    company,
+    role,
+    salary_range,
+    location,
+    offer_type
+  ),
+  post_images:post_images!post_images_post_id_fkey (
+    url,
+    sort_order
+  )
+`;
+
+// ── Transformers ───────────────────────────────────────────────────────────
+function toProjectCardData(row: RawPost): ProjectCardData | null {
+  const pp = row.project_posts;
+  if (!pp) return null;
+  const sortedImages = [...(row.post_images ?? [])].sort(
+    (a, b) => a.sort_order - b.sort_order
+  );
+  return {
+    post_id:        row.id,
+    caption:        row.caption,
+    likes_count:    row.likes_count,
+    comments_count: row.comments_count,
+    title:          pp.title,
+    description:    pp.description,
+    started_at:     pp.started_at,
+    ended_at:       pp.ended_at,
+    status:         pp.status,
+    cover_url:      sortedImages[0]?.url ?? null,
+    author_name:    row.profiles?.username ?? "Unknown",
+    author_avatar:  row.profiles?.avatar ?? null,
+  };
+}
+
+function toOfferCardData(row: RawPost): OfferCardData | null {
+  const op = row.offer_posts;
+  if (!op) return null;
+  return {
+    post_id:        row.id,
+    caption:        row.caption,
+    likes_count:    row.likes_count,
+    comments_count: row.comments_count,
+    created_at:     row.created_at,
+    author_name:    row.profiles?.username ?? "Unknown",
+    author_avatar:  row.profiles?.avatar ?? null,
+    company:        op.company,
+    role:           op.role,
+    salary_range:   op.salary_range,
+    location:       op.location,
+    offer_type:     op.offer_type,
+  };
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 export default function ViewProfile() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors } = useTheme();
-  const { profile: myProfile } = useProfile();
-  const router = useRouter();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id     = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const [viewed, setViewed] = useState<ViewedProfile | null>(null);
+  const { colors }              = useTheme();
+  const { profile: myProfile }  = useProfile();
+  const router                  = useRouter();
+
+  const [viewed,         setViewed]         = useState<ViewedProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [allyStatus, setAllyStatus] = useState<AllyStatus>("loading");
-  const [actionLoading, setActionLoading] = useState(false);
+  const [allyStatus,     setAllyStatus]     = useState<AllyStatus>("loading");
+  const [actionLoading,  setActionLoading]  = useState(false);
+  const [allyCount,      setAllyCount]      = useState(0);
 
-  const BG_MUT  = colors?.bg?.muted        ?? "#110f0d";
+  // posts
+  const [posts,        setPosts]        = useState<RawPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [hasMore,      setHasMore]      = useState(true);
+  const [cursor,       setCursor]       = useState<string | null>(null);
+  const isFetchingMore                  = useRef(false);
+
+  const BG_MUT  = colors?.bg?.muted          ?? "#110f0d";
   const SURFACE = colors?.surface?.secondary ?? "#1a1714";
-  const BORDER  = colors?.border?.subtle    ?? "#3a322c";
-  const INK     = colors?.text?.primary     ?? "#e8e0d5";
-  const INK_MUT = colors?.text?.secondary   ?? "#9a9189";
+  const BORDER  = colors?.border?.subtle     ?? "#3a322c";
+  const INK     = colors?.text?.primary      ?? "#e8e0d5";
+  const INK_MUT = colors?.text?.secondary    ?? "#9a9189";
 
-  // ── fetch profile ──────────────────────────────────────────────────────────
+  // ── Self-visit redirect ────────────────────────────────────────────────────
+  // useEffect(() => {
+  //   if (id && myProfile?.id && id === myProfile.id) {
+  //     // Replace so the user can't "go back" to this screen
+  //     router.replace("/main/profile");
+  //   }
+  // }, [id, myProfile?.id]);
+
+  // ── Fetch profile ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
     (async () => {
       setLoadingProfile(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, username, avatar, banner, bio, displayname, followers, following")
+        .select("id, username, avatar, banner, bio, displayname")
         .eq("id", id)
         .single();
-
       if (!error && data) setViewed(data);
       setLoadingProfile(false);
     })();
   }, [id]);
 
-  // ── fetch ally status ──────────────────────────────────────────────────────
+  // ── Fetch ally count ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    supabase
+      .from("allies")
+      .select("id", { count: "exact", head: true })
+      .or(`requester_id.eq.${id},receiver_id.eq.${id}`)
+      .eq("status", "accepted")
+      .then(({ count }) => setAllyCount(count ?? 0));
+  }, [id]);
+
+  // ── Fetch ally status ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!id || !myProfile?.id) return;
     fetchAllyStatus();
@@ -84,8 +216,7 @@ export default function ViewProfile() {
       )
       .maybeSingle();
 
-    if (!data) { setAllyStatus("none"); return; }
-
+    if (!data)                      { setAllyStatus("none");    return; }
     if (data.status === "accepted") { setAllyStatus("accepted"); return; }
     if (data.status === "pending") {
       setAllyStatus(
@@ -96,19 +227,67 @@ export default function ViewProfile() {
     setAllyStatus("none");
   }
 
-  // ── send request ───────────────────────────────────────────────────────────
+  // ── Fetch posts ────────────────────────────────────────────────────────────
+  const fetchUserPosts = useCallback(async (isRefresh = false) => {
+    if (!id) return;
+    if (isRefresh) setRefreshing(true);
+    else           setLoadingPosts(true);
+
+    const { data, error: fetchError } = await supabase
+      .from("posts")
+      .select(FEED_QUERY)
+      .eq("user_id", id)
+      .order("created_at", { ascending: false })
+      .limit(PAGE_SIZE)
+      .returns<RawPost[]>();
+
+    if (!fetchError && data) {
+      setPosts(data);
+      setHasMore(data.length === PAGE_SIZE);
+      setCursor(data.length > 0 ? data[data.length - 1].created_at : null);
+    }
+
+    setLoadingPosts(false);
+    setRefreshing(false);
+  }, [id]);
+
+  const fetchMorePosts = useCallback(async () => {
+    if (!id || isFetchingMore.current || !hasMore || !cursor) return;
+    isFetchingMore.current = true;
+
+    const { data } = await supabase
+      .from("posts")
+      .select(FEED_QUERY)
+      .eq("user_id", id)
+      .order("created_at", { ascending: false })
+      .lt("created_at", cursor)
+      .limit(PAGE_SIZE)
+      .returns<RawPost[]>();
+
+    if (data) {
+      setPosts((prev) => [...prev, ...data]);
+      setHasMore(data.length === PAGE_SIZE);
+      setCursor(data.length > 0 ? data[data.length - 1].created_at : cursor);
+    }
+
+    isFetchingMore.current = false;
+  }, [id, cursor, hasMore]);
+
+  useEffect(() => {
+    if (id) fetchUserPosts();
+  }, [id]);
+
+  // ── Ally actions ───────────────────────────────────────────────────────────
   async function sendAllyRequest() {
     if (!myProfile?.id || !id) return;
     setActionLoading(true);
     const { error } = await supabase
       .from("allies")
       .insert({ requester_id: myProfile.id, receiver_id: id });
-
     if (!error) setAllyStatus("pending_sent");
     setActionLoading(false);
   }
 
-  // ── accept request ─────────────────────────────────────────────────────────
   async function acceptAllyRequest() {
     if (!myProfile?.id || !id) return;
     setActionLoading(true);
@@ -117,12 +296,10 @@ export default function ViewProfile() {
       .update({ status: "accepted" })
       .eq("requester_id", id)
       .eq("receiver_id", myProfile.id);
-
     if (!error) setAllyStatus("accepted");
     setActionLoading(false);
   }
 
-  // ── withdraw / cancel ──────────────────────────────────────────────────────
   async function withdrawRequest() {
     if (!myProfile?.id || !id) return;
     setActionLoading(true);
@@ -136,7 +313,37 @@ export default function ViewProfile() {
     setActionLoading(false);
   }
 
-  // ── ally button rendering ──────────────────────────────────────────────────
+  // ── Render post ────────────────────────────────────────────────────────────
+  function renderPost(row: RawPost) {
+    switch (row.post_type) {
+      case "project": {
+        const data = toProjectCardData(row);
+        if (!data) return null;
+        return (
+          <ProjectCard
+            key={row.id}
+            data={data}
+            onPress={(postId) => router.push(`/post/${postId}`)}
+          />
+        );
+      }
+      case "offer": {
+        const data = toOfferCardData(row);
+        if (!data) return null;
+        return (
+          <OfferCard
+            key={row.id}
+            data={data}
+            onPress={(postId) => router.push(`/post/${postId}`)}
+          />
+        );
+      }
+      default:
+        return null;
+    }
+  }
+
+  // ── Ally button ────────────────────────────────────────────────────────────
   function AllyButton() {
     if (allyStatus === "loading") {
       return (
@@ -156,8 +363,8 @@ export default function ViewProfile() {
           {actionLoading
             ? <ActivityIndicator size="small" color={INK_MUT} />
             : <>
-                <Text style={[styles.allyBtnLabel, { color: INK_MUT }]}>⚔ ALLIED</Text>
-                <Text style={[styles.allyBtnSub, { color: BORDER }]}>tap to remove</Text>
+                <Text style={[styles.allyBtnLabel, { color: INK_MUT }]}>ALLIED</Text>
+                <Text style={[styles.allyBtnSub,   { color: BORDER  }]}>tap to remove</Text>
               </>
           }
         </Pressable>
@@ -174,8 +381,8 @@ export default function ViewProfile() {
           {actionLoading
             ? <ActivityIndicator size="small" color={EMBER} />
             : <>
-                <Text style={[styles.allyBtnLabel, { color: INK_MUT }]}>⏳ REQUEST SENT</Text>
-                <Text style={[styles.allyBtnSub, { color: BORDER }]}>tap to cancel</Text>
+                <Text style={[styles.allyBtnLabel, { color: INK_MUT }]}>REQUEST SENT</Text>
+                <Text style={[styles.allyBtnSub,   { color: BORDER  }]}>tap to cancel</Text>
               </>
           }
         </Pressable>
@@ -206,7 +413,6 @@ export default function ViewProfile() {
       );
     }
 
-    // none — default send button
     return (
       <Pressable
         style={({ pressed }) => [
@@ -218,12 +424,13 @@ export default function ViewProfile() {
       >
         {actionLoading
           ? <ActivityIndicator size="small" color={EMBER} />
-          : <Text style={[styles.allyBtnLabel, { color: EMBER }]}>⚔ FORM ALLIANCE</Text>
+          : <Text style={[styles.allyBtnLabel, { color: EMBER }]}>FORM ALLIANCE</Text>
         }
       </Pressable>
     );
   }
 
+  // ── Guards ─────────────────────────────────────────────────────────────────
   if (loadingProfile) {
     return (
       <View style={[styles.centered, { backgroundColor: BG_MUT }]}>
@@ -240,17 +447,22 @@ export default function ViewProfile() {
     );
   }
 
+  // ── UI ─────────────────────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1, backgroundColor: BG_MUT }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchUserPosts(true)}
+            tintColor={EMBER}
+          />
+        }
       >
         {/* ── Back button ── */}
-        <Pressable
-          style={styles.backBtn}
-          onPress={() => router.back()}
-        >
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Text style={[styles.backBtnText, { color: EMBER, fontFamily: MONO }]}>← BACK</Text>
         </Pressable>
 
@@ -275,7 +487,7 @@ export default function ViewProfile() {
           entering={FadeInUp.duration(260).delay(80)}
           style={[styles.card, { backgroundColor: colors.bg.muted, borderColor: BORDER }]}
         >
-          {/* avatar row */}
+          {/* avatar + ally button */}
           <View style={styles.avatarRow}>
             <Image
               source={{
@@ -303,14 +515,46 @@ export default function ViewProfile() {
 
           {/* ── Stats bar ── */}
           <View style={[styles.statsBar, { backgroundColor: SURFACE, borderColor: BORDER, borderRadius: R }]}>
-            <ProfileStatItem value={viewed.following ?? 0} label="Allied With" showDivider />
-            <ProfileStatItem value={viewed.followers ?? 0} label="Allies" />
+            <ProfileStatItem value={allyCount} label="Allied With" showDivider />
+            <ProfileStatItem value="—" label="Streak" />
           </View>
 
-          {/* ── Projects ── */}
-          <ProfileProjects userId={viewed.id} />
+          {/* ── Posts ── */}
+          <View style={{ marginBottom: 24 }}>
+            <Text style={[styles.sectionLabel, { color: colors.text.skillhive, marginBottom: 14 }]}>
+              Posts
+            </Text>
 
-          {/* footer */}
+            {loadingPosts ? (
+              <ActivityIndicator color={EMBER} style={{ marginVertical: 24 }} />
+            ) : posts.length === 0 ? (
+              <Text style={[styles.emptyText, { color: INK_MUT, fontFamily: MONO }]}>
+                [ no posts yet ]
+              </Text>
+            ) : (
+              <>
+                {posts.map(renderPost)}
+
+                {hasMore && (
+                  <TouchableOpacity
+                    onPress={fetchMorePosts}
+                    style={{ padding: 16, alignItems: "center" }}
+                  >
+                    <Text style={{ color: INK_MUT, fontSize: 12, letterSpacing: 1 }}>
+                      load more
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {!hasMore && posts.length > 0 && (
+                  <Text style={[styles.emptyText, { color: BORDER, fontFamily: MONO }]}>
+                    [ end of posts ]
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+
           <Text style={[styles.footerLine, { color: BORDER, fontFamily: MONO }]}>
             © SkillHiive
           </Text>
@@ -423,6 +667,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 18,
     marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  emptyText: {
+    fontSize: 11,
+    letterSpacing: 1.5,
+    textAlign: "center",
+    marginVertical: 20,
   },
   footerLine: {
     fontSize: 9,

@@ -44,6 +44,7 @@ export default function Layout() {
     },
     [],
   );
+  
 
   const handleTabPress = useCallback((routeName: string) => {
     const index = ROUTES.findIndex((r) => r.name === routeName);

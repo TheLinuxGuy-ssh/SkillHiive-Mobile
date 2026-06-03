@@ -28,7 +28,7 @@ type RawPost = {
   comments_count: number;
   created_at:     string;
   profiles: {
-    id: string | null;
+    id:       string;
     username: string | null;
     avatar:   string | null;
   };
@@ -52,7 +52,7 @@ type RawPost = {
   }[] | null;
 };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE        = 10;
 const REFRESH_INTERVAL = 5 * 60 * 1000;
 
 const FEED_QUERY = `
@@ -63,7 +63,7 @@ const FEED_QUERY = `
   comments_count,
   created_at,
   profiles:profiles!posts_user_id_profiles_fkey (
-    id
+    id,
     username,
     avatar
   ),
@@ -93,7 +93,7 @@ function toProjectCardData(row: RawPost): ProjectCardData | null {
   const sortedImages = [...(row.post_images ?? [])].sort(
     (a, b) => a.sort_order - b.sort_order
   );
-  return {  
+  return {
     user_id:        row.profiles.id,
     post_id:        row.id,
     caption:        row.caption,
@@ -103,6 +103,7 @@ function toProjectCardData(row: RawPost): ProjectCardData | null {
     description:    pp.description,
     started_at:     pp.started_at,
     ended_at:       pp.ended_at,
+    created_at:     row.created_at,
     status:         pp.status,
     cover_url:      sortedImages[0]?.url ?? null,
     author_name:    row.profiles?.username ?? "Unknown",
@@ -133,10 +134,10 @@ function toOfferCardData(row: RawPost): OfferCardData | null {
 export default function FeedScreen() {
   const { colors, spacing } = useTheme();
 
-  const scrollRef       = useRef<ScrollView>(null);
-  const intervalRef     = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastFetchedRef  = useRef<number>(0);
-  const isFetchingMore  = useRef(false);
+  const scrollRef      = useRef<ScrollView>(null);
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastFetchedRef = useRef<number>(0);
+  const isFetchingMore = useRef(false);
 
   const [posts,       setPosts]       = useState<RawPost[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -147,7 +148,17 @@ export default function FeedScreen() {
   const [cursor,      setCursor]      = useState<string | null>(null);
 
   // ── Initial load / refresh ─────────────────────────────────────────────
+useEffect(() => {
+  console.log(
+    "Existing channels:",
+    supabase.getChannels().map((c) => ({
+      topic: c.topic,
+      state: c.state,
+    }))
+  );
 
+  // rest of effect...
+}, []);
   const fetchFeed = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else           setLoading(true);
@@ -164,8 +175,10 @@ export default function FeedScreen() {
       setError("Couldn't load posts. Pull down to try again.");
       setLoading(false);
       setRefreshing(false);
+      console.error(fetchError);
       return;
     }
+
 
     const rows = data ?? [];
     lastFetchedRef.current = Date.now();
@@ -176,8 +189,35 @@ export default function FeedScreen() {
     setRefreshing(false);
   }, []);
 
+  // ── Keep ref to latest fetchFeed so realtime callback never goes stale ─
+const fetchFeedRef = useRef(fetchFeed);
+useEffect(() => {
+  fetchFeedRef.current = fetchFeed;
+}, [fetchFeed]);
   // ── Load more ──────────────────────────────────────────────────────────
+// ── Realtime updates ────────────────────────────────────────────────────
 
+useEffect(() => {
+  const channel = supabase.channel("feed-realtime");
+
+  channel.on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "posts",
+    },
+    () => {
+      console.log("posts changed");
+    }
+  );
+
+  channel.subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
   const fetchMore = useCallback(async () => {
     if (isFetchingMore.current || !hasMore || !cursor) return;
     isFetchingMore.current = true;
@@ -187,7 +227,7 @@ export default function FeedScreen() {
       .from("posts")
       .select(FEED_QUERY)
       .order("created_at", { ascending: false })
-      .lt("created_at", cursor)   // everything older than last loaded post
+      .lt("created_at", cursor)
       .limit(PAGE_SIZE)
       .returns<RawPost[]>();
 
@@ -202,7 +242,7 @@ export default function FeedScreen() {
     isFetchingMore.current = false;
   }, [cursor, hasMore]);
 
-  // ── Scroll handler — trigger load more at 80% scroll depth ────────────
+  // ── Scroll handler ─────────────────────────────────────────────────────
 
   function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -211,7 +251,7 @@ export default function FeedScreen() {
     if (scrolledTo >= eightyPercent) fetchMore();
   }
 
-  // ── Auto-refresh ───────────────────────────────────────────────────────
+  // ── Auto-refresh + app state ───────────────────────────────────────────
 
   useEffect(() => {
     fetchFeed();
@@ -233,8 +273,6 @@ export default function FeedScreen() {
     };
   }, [fetchFeed]);
 
-  // ── Render post ────────────────────────────────────────────────────────
-
   function renderPost(row: RawPost) {
     switch (row.post_type) {
       case "project": {
@@ -244,7 +282,6 @@ export default function FeedScreen() {
           <ProjectCard
             key={row.id}
             data={data}
-            
             onPress={(id) => router.push(`/post/${id}`)}
           />
         );
@@ -252,7 +289,13 @@ export default function FeedScreen() {
       case "offer": {
         const data = toOfferCardData(row);
         if (!data) return null;
-        return <OfferCard key={row.id} data={data} onPress={(id) => router.push(`/post/${id}`)} />;
+        return (
+          <OfferCard
+            key={row.id}
+            data={data}
+            onPress={(id) => router.push(`/post/${id}`)}
+          />
+        );
       }
       default:
         return null;
@@ -313,7 +356,6 @@ export default function FeedScreen() {
             <>
               {posts.map(renderPost)}
 
-              {/* Load more indicator */}
               {loadingMore && (
                 <ActivityIndicator
                   color={colors.tint.primary}
@@ -321,34 +363,34 @@ export default function FeedScreen() {
                 />
               )}
 
-             {!hasMore && posts.length > 0 && (
-  <Text
-    style={{
-      color: colors.text.tertiary,
-      textAlign: "center",
-      marginVertical: 20,
-      fontSize: 12,
-    }}
-  >
-    You're all caught up
-  </Text>
-)}
+              {!hasMore && posts.length > 0 && (
+                <Text
+                  style={{
+                    color:          colors.text.tertiary,
+                    textAlign:      "center",
+                    marginVertical: 20,
+                    fontSize:       12,
+                  }}
+                >
+                  You're all caught up
+                </Text>
+              )}
 
-{hasMore && posts.length > 0 && (
-  <TouchableOpacity
-    onPress={fetchMore}
-    disabled={loadingMore}
-    style={{ padding: 16, alignItems: "center" }}
-  >
-    {loadingMore ? (
-      <ActivityIndicator color={colors.tint.primary} />
-    ) : (
-      <Text style={{ color: colors.text.tertiary, fontSize: 13 }}>
-        Load more
-      </Text>
-    )}
-  </TouchableOpacity>
-)}
+              {hasMore && posts.length > 0 && (
+                <TouchableOpacity
+                  onPress={fetchMore}
+                  disabled={loadingMore}
+                  style={{ padding: 16, alignItems: "center" }}
+                >
+                  {loadingMore ? (
+                    <ActivityIndicator color={colors.tint.primary} />
+                  ) : (
+                    <Text style={{ color: colors.text.tertiary, fontSize: 13 }}>
+                      Load more
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
             </>
           )}
         </View>

@@ -187,6 +187,17 @@ export default function Profile() {
   const [hasMore,      setHasMore]      = useState(true);
   const [cursor,       setCursor]       = useState<string | null>(null);
   const isFetchingMore                  = useRef(false);
+  const [allyCount, setAllyCount] = useState(0);
+
+useEffect(() => {
+  if (!profile?.id) return;
+  supabase
+    .from("allies")
+    .select("id", { count: "exact", head: true })
+    .or(`requester_id.eq.${profile.id},receiver_id.eq.${profile.id}`)
+    .eq("status", "accepted")
+    .then(({ count }) => setAllyCount(count ?? 0));
+}, [profile?.id]);
 
   const BG      = colors?.bg?.primary;
   const BG_MUT  = colors?.bg?.muted         ?? "#110f0d";
@@ -205,6 +216,7 @@ export default function Profile() {
   }, []);
 
   // ── Fetch own posts ──────────────────────────────────────────────────────
+  
   const fetchUserPosts = useCallback(async (isRefresh = false) => {
     const uid = profile?.id;
     if (!uid) return;
@@ -313,7 +325,7 @@ export default function Profile() {
         return null;
     }
   }
-
+console.log(posts.length);
   // ── UI ───────────────────────────────────────────────────────────────────
   return (
     <View style={{ flex: 1 }}>
@@ -425,45 +437,44 @@ export default function Profile() {
             {/* ── Stats bar ── */}
             <View style={[styles.statsBar, { backgroundColor: SURFACE, borderColor: BORDER, borderRadius: R }]}>
               {/* <ProfileStatItem value={profile?.following || 0} label="Allied With" showDivider /> */}
+              <ProfileStatItem value={allyCount} label="Allied With" showDivider />
               <ProfileStatItem value="12" label="Streak" />
             </View>
 
             {/* ── Posts ── */}
-            <View style={{ marginBottom: 24 }}>
-              <Text style={[styles.sectionLabel, { color: colors.text.skillhive, marginBottom: 14 }]}>
-                Posts
-              </Text>
+            {/* ── Posts ── */}
+{!loadingPosts && posts.length > 0 && (
+  <View style={{ marginBottom: 24 }}>
+    <Text style={[styles.sectionLabel, { color: colors.text.skillhive, marginBottom: 14 }]}>
+      Posts
+    </Text>
 
-              {loadingPosts ? (
-                <ActivityIndicator color={EMBER} style={{ marginVertical: 24 }} />
-              ) : posts.length === 0 ? (
-                <Text style={[styles.emptyText, { color: INK_MUT, fontFamily: MONO }]}>
-                  [ no posts yet ]
-                </Text>
-              ) : (
-                <>
-                  {posts.map(renderPost)}
+    <>
+      {posts.map(renderPost)}
 
-                  {hasMore && (
-                    <TouchableOpacity
-                      onPress={fetchMorePosts}
-                      style={{ padding: 16, alignItems: "center" }}
-                    >
-                      <Text style={{ color: INK_MUT, fontSize: 12, letterSpacing: 1 }}>
-                        load more
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+      {hasMore && (
+        <TouchableOpacity
+          onPress={fetchMorePosts}
+          style={{ padding: 16, alignItems: "center" }}
+        >
+          <Text style={{ color: INK_MUT, fontSize: 12, letterSpacing: 1 }}>
+            load more
+          </Text>
+        </TouchableOpacity>
+      )}
 
-                  {!hasMore && posts.length > 0 && (
-                    <Text style={[styles.emptyText, { color: BORDER, fontFamily: MONO }]}>
-                      [ end of posts ]
-                    </Text>
-                  )}
-                </>
-              )}
-            </View>
+      {!hasMore && posts.length > 0 && (
+        <Text style={[styles.emptyText, { color: BORDER, fontFamily: MONO }]}>
+          {/* [ end of posts ] */}
+        </Text>
+      )}
+    </>
+  </View>
+)}
 
+{loadingPosts && (
+  <ActivityIndicator color={EMBER} style={{ marginVertical: 24 }} />
+)}
             {/* ── Preferences ── */}
             <View style={[styles.block, { backgroundColor: SURFACE, borderColor: BORDER, borderRadius: R }]}>
               <Text style={[styles.sectionLabel, { color: colors.text.skillhive }]}>
