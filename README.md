@@ -1,50 +1,144 @@
-# Welcome to your Expo app 👋
+# SkillHive Mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> The mobile app for SkillHive — A learning and community platform built for people who want to connect, collaborate, and grow together.
 
-## Get started
+Built with **React Native + Expo**, backed by a **self-hosted Supabase** instance. Currently in active development with a focus on shipping community features first.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+| Layer | Technology |
+|---|---|
+| Framework | React Native 0.83 + Expo SDK 55 |
+| Language | TypeScript |
+| Routing | Expo Router (file-based) |
+| Backend | Supabase (self-hosted) — auth, database, storage, realtime |
+| State Management | Zustand + TanStack React Query |
+| Video/Audio | LiveKit (`@livekit/react-native`) |
+| UI | Expo UI, Lucide icons, React Native Reanimated, Gesture Handler |
+| Build | EAS Build |
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## Project Structure
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+SkillHive-Mobile/
+├── app/              # Expo Router file-based routes (screens & layouts)
+├── components/       # Reusable UI components
+├── constants/        # App-wide constants (colors, config, etc.)
+├── hooks/            # Custom React hooks
+├── lib/              # Supabase client, LiveKit setup, and other integrations
+├── types/            # TypeScript type definitions
+├── utils/            # Helper/utility functions
+└── assets/           # Images, fonts, and static assets
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## Getting Started
 
-To learn more about developing your project with Expo, look at the following resources:
+### Prerequisites
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Node.js 18+
+- Expo CLI (`npm install -g expo-cli`)
+- A running Supabase instance (self-hosted or cloud)
+- For native builds: Android Studio / Xcode
 
-## Join the community
+### Installation
 
-Join our community of developers creating universal apps.
+```bash
+git clone https://github.com/TheLinuxGuy-ssh/SkillHive-Mobile.git
+cd SkillHive-Mobile
+npm install
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Environment Setup
+
+Create a `.env` file at the root (or use Expo's `app.config.js` approach) and set your Supabase credentials:
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://your-supabase-instance.example.com
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+> If you're running a self-hosted Supabase instance, make sure the URL points to your reverse proxy endpoint with a valid SSL certificate.
+
+### Running the App
+
+```bash
+# Start the Expo dev server
+npx expo start
+
+# Run on Android
+npx expo run:android
+
+# Run on iOS
+npx expo run:ios
+```
+
+For the best development experience, use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) rather than Expo Go — the app uses native modules (LiveKit, WebRTC, camera) that aren't supported in Expo Go.
+
+---
+
+## Features (Current)
+
+- **Authentication** — Email/password auth via Supabase, persisted with Expo Secure Store
+- **User Profiles** — View and edit profiles, upload profile photos to Supabase Storage
+- **Public Profile Viewing** — Browse other users' public profiles
+- **Community Feed** — Global post feed with support for project, media, and offer post types
+- **Post Composer** — Create posts via a bottom sheet composer
+- **Ally System** — Send, accept, and decline ally/alliance requests (`pending / accepted / declined`)
+- **Notifications** — In-app notifications screen with a realtime bell indicator in the header
+- **LiveKit Video** — Real-time video/audio sessions powered by self-hosted LiveKit
+
+---
+
+## Building for Production
+
+This project uses [EAS Build](https://docs.expo.dev/build/introduction/) for production builds.
+
+```bash
+# Install EAS CLI
+npm install -g eas-cli
+
+# Configure your project (first time)
+eas build:configure
+
+# Build for Android
+eas build --platform android
+
+# Build for iOS
+eas build --platform ios
+```
+
+Build profiles are defined in `eas.json`.
+
+---
+
+## Self-Hosted Infrastructure
+
+SkillHive runs entirely on self-hosted infrastructure:
+
+- **Supabase** — Containerized via Docker, exposed through an Nginx reverse proxy with SSL
+- **LiveKit** — Multi-worker nodes with Redis-backed coordination and a load-balanced signalling server
+- **Storage** — Supabase Storage for user media (profile images, post attachments)
+
+---
+
+## Roadmap
+
+- [ ] Skills & learning content (courses, resources)
+- [ ] Direct messaging
+- [ ] Skill endorsements & verification
+- [ ] Push notifications
+- [ ] App Store / Play Store release
+
+---
+
+## License
+
+Copyright © 2026 SkillHive. Source available under the
+[PolyForm Noncommercial License 1.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
+Free to view and learn from. Commercial use is not permitted.
