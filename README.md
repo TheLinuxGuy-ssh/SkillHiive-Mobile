@@ -96,4 +96,4 @@ A strong PR in this repository includes:
 
 ## License
 
-Add your project license details here and keep license policy consistent with SkillHive-Web unless there is a documented reason not to.
+This project is subjected to the PolyForm Noncommercial License 1.0.0
