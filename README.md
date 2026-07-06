@@ -1,144 +1,99 @@
 # SkillHive Mobile
 
-> The mobile app for SkillHive — A learning and community platform built for people who want to connect, collaborate, and grow together.
+If you are reading this, you are looking at the mobile client for SkillHive.
 
-Built with **React Native + Expo**, backed by a **self-hosted Supabase** instance. Currently in active development with a focus on shipping community features first.
+SkillHive is a learning and community platform built for people who want to connect, collaborate, and grow together. This repository contains the mobile app experience: fast, focused, and designed for people interacting in shorter sessions throughout the day.
 
----
+This repo is tightly connected to **SkillHive-Web**. The web app carries the broader platform surface, while this mobile app translates the same product into a native-first experience that feels right on phones and tablets.
 
-## Tech Stack
+## What this repository is responsible for
 
-| Layer | Technology |
-|---|---|
-| Framework | React Native 0.83 + Expo SDK 55 |
-| Language | TypeScript |
-| Routing | Expo Router (file-based) |
-| Backend | Supabase (self-hosted) — auth, database, storage, realtime |
-| State Management | Zustand + TanStack React Query |
-| Video/Audio | LiveKit (`@livekit/react-native`) |
-| UI | Expo UI, Lucide icons, React Native Reanimated, Gesture Handler |
-| Build | EAS Build |
+This mobile repo is where we deliver SkillHive for handheld devices, including:
 
----
+- mobile-first onboarding and authentication flows
+- learning and community interactions optimized for smaller screens
+- push-aware, session-friendly engagement patterns
+- native UX conventions, gestures, and navigation structures
+- performance-conscious rendering for real-world devices and networks
 
-## Project Structure
+If a feature is used frequently, time-sensitively, or in quick bursts, mobile experience quality here is critical.
 
-```
-SkillHive-Mobile/
-├── app/              # Expo Router file-based routes (screens & layouts)
-├── components/       # Reusable UI components
-├── constants/        # App-wide constants (colors, config, etc.)
-├── hooks/            # Custom React hooks
-├── lib/              # Supabase client, LiveKit setup, and other integrations
-├── types/            # TypeScript type definitions
-├── utils/            # Helper/utility functions
-└── assets/           # Images, fonts, and static assets
-```
+## How this repo relates to SkillHive-Web
 
----
+The relationship is product-level, not just technical:
 
-## Getting Started
+- **SkillHive-Web** usually defines broad workflow depth and platform breadth.
+- **SkillHive-Mobile** delivers those same core capabilities in a native interaction model.
+- Users should never have to “relearn” SkillHive when switching devices.
+- Naming, domain rules, and key user flows should remain aligned across both repos.
 
-### Prerequisites
+When web evolves a core flow, mobile should either ship parity or explicitly track the gap with a clear plan.
 
-- Node.js 18+
-- Expo CLI (`npm install -g expo-cli`)
-- A running Supabase instance (self-hosted or cloud)
-- For native builds: Android Studio / Xcode
+## Tech profile
 
-### Installation
+This repository is implemented in **TypeScript**.
+
+Contributions should preserve strict typing, predictable state transitions, and maintainable component architecture suitable for long-term mobile product evolution.
+
+## Local development
+
+Clone and install:
 
 ```bash
 git clone https://github.com/TheLinuxGuy-ssh/SkillHive-Mobile.git
 cd SkillHive-Mobile
-npm install
+# npm install | pnpm install | yarn install
 ```
 
-### Environment Setup
-
-Create a `.env` file at the root (or use Expo's `app.config.js` approach) and set your Supabase credentials:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://your-supabase-instance.example.com
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
-
-> If you're running a self-hosted Supabase instance, make sure the URL points to your reverse proxy endpoint with a valid SSL certificate.
-
-### Running the App
+Run the app in development:
 
 ```bash
-# Start the Expo dev server
-npx expo start
-
-# Run on Android
-npx expo run:android
-
-# Run on iOS
-npx expo run:ios
+# npm run dev
+# pnpm dev
+# yarn dev
 ```
 
-For the best development experience, use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) rather than Expo Go — the app uses native modules (LiveKit, WebRTC, camera) that aren't supported in Expo Go.
+Use the scripts defined in `package.json` for platform-specific runs, builds, tests, and linting.
 
----
-
-## Features (Current)
-
-- **Authentication** — Email/password auth via Supabase, persisted with Expo Secure Store
-- **User Profiles** — View and edit profiles, upload profile photos to Supabase Storage
-- **Public Profile Viewing** — Browse other users' public profiles
-- **Community Feed** — Global post feed with support for project, media, and offer post types
-- **Post Composer** — Create posts via a bottom sheet composer
-- **Ally System** — Send, accept, and decline ally/alliance requests (`pending / accepted / declined`)
-- **Notifications** — In-app notifications screen with a realtime bell indicator in the header
-- **LiveKit Video** — Real-time video/audio sessions powered by self-hosted LiveKit
-
----
-
-## Building for Production
-
-This project uses [EAS Build](https://docs.expo.dev/build/introduction/) for production builds.
+Before opening a PR, validate:
 
 ```bash
-# Install EAS CLI
-npm install -g eas-cli
-
-# Configure your project (first time)
-eas build:configure
-
-# Build for Android
-eas build --platform android
-
-# Build for iOS
-eas build --platform ios
+# npm run test
+# npm run lint
+# npm run build
 ```
 
-Build profiles are defined in `eas.json`.
+## Engineering expectations
 
----
+For mobile contributions, hold the line on product clarity and runtime quality.
 
-## Self-Hosted Infrastructure
+- Build for constrained environments (battery, memory, variable network conditions).
+- Keep interactions obvious and touch-friendly.
+- Minimize avoidable re-renders and startup overhead.
+- Maintain clean separation between presentation, state, and service layers.
+- Treat offline/error states as first-class user experience concerns.
 
-SkillHive runs entirely on self-hosted infrastructure:
+## Cross-repo contribution workflow (Mobile + Web)
 
-- **Supabase** — Containerized via Docker, exposed through an Nginx reverse proxy with SSL
-- **LiveKit** — Multi-worker nodes with Redis-backed coordination and a load-balanced signalling server
-- **Storage** — Supabase Storage for user media (profile images, post attachments)
+When shipping a feature in mobile, always check:
 
----
+1. Is behavior consistent with SkillHive-Web?
+2. Are shared API assumptions still true?
+3. Is terminology/copy aligned with web?
+4. If parity is incomplete, is there a linked tracking issue?
 
-## Roadmap
+The goal is one SkillHive product expressed through two platform-appropriate clients.
 
-- [ ] Skills & learning content (courses, resources)
-- [ ] Direct messaging
-- [ ] Skill endorsements & verification
-- [ ] Push notifications
-- [ ] App Store / Play Store release
+## Pull requests
 
----
+A strong PR in this repository includes:
+
+- concise summary of user-facing impact
+- screenshots or screen recordings for UI changes
+- device/testing notes (OS/version/form factor where relevant)
+- performance considerations for complex screens
+- explicit references to related web changes or parity tasks
 
 ## License
 
-Copyright © 2026 SkillHive. Source available under the
-[PolyForm Noncommercial License 1.0](https://polyformproject.org/licenses/noncommercial/1.0.0).
-Free to view and learn from. Commercial use is not permitted.
+Add your project license details here and keep license policy consistent with SkillHive-Web unless there is a documented reason not to.
